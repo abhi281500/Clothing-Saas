@@ -1,0 +1,30 @@
+{
+  "name": "clothing-commerce-saas",
+  "version": "1.0.0",
+  "description": "Multi-tenant ecommerce SaaS for Indian clothing boutiques and Instagram/WhatsApp-first sellers",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "start": "npm run start --prefix server",
+    "server": "npm run dev --prefix server",
+    "client": "npm run dev --prefix client",
+    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "build": "npm run build --prefix client",
+    "test": "npm run test --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.5"
+  },
+  "keywords": [
+    "ecommerce",
+    "saas",
+    "multi-tenant",
+    "clothing",
+    "mern"
+  ],
+  "author": "",
+  "license": "ISC"
+}
