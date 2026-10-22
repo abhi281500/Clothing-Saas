@@ -1,13 +1,14 @@
+const mongoose = require('mongoose');
 const Store = require('../models/Store');
 const Product = require('../models/Product');
 const { Order } = require('../models/Order');
 
 class StoreService {
   /**
-   * Get public store profile by slug for the customer storefront
+   * Get public store profile by slug for the customer storefront (safe projection)
    */
   async getPublicStoreBySlug(slug) {
-    const store = await Store.findOne({ slug: slug.toLowerCase(), isActive: true });
+    const store = await Store.findOne({ slug: slug.toLowerCase(), isActive: true }).select('-ownerId');
     if (!store) {
       const err = new Error('Store not found or currently unavailable');
       err.statusCode = 404;
@@ -15,6 +16,14 @@ class StoreService {
       throw err;
     }
     return store;
+  }
+
+  /**
+   * Get distinct categories for a store's public catalog
+   */
+  async getStoreCategories(storeId) {
+    const categories = await Product.distinct('category', { storeId, isPublished: true });
+    return categories.filter(Boolean);
   }
 
   /**
@@ -56,12 +65,14 @@ class StoreService {
    * Get store operational overview / dashboard stats
    */
   async getStoreStats(storeId) {
+    const storeObjectId = new mongoose.Types.ObjectId(storeId.toString());
+
     const [totalProducts, totalOrders, recentOrders, orderStats] = await Promise.all([
-      Product.countDocuments({ storeId }),
-      Order.countDocuments({ storeId }),
-      Order.find({ storeId }).sort({ createdAt: -1 }).limit(5),
+      Product.countDocuments({ storeId: storeObjectId }),
+      Order.countDocuments({ storeId: storeObjectId }),
+      Order.find({ storeId: storeObjectId }).sort({ createdAt: -1 }).limit(5),
       Order.aggregate([
-        { $match: { storeId: storeId } },
+        { $match: { storeId: storeObjectId } },
         {
           $group: {
             _id: '$orderStatus',

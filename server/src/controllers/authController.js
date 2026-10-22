@@ -1,5 +1,6 @@
 const authService = require('../services/authService');
 const { successResponse, errorResponse } = require('../utils/apiResponse');
+const { regenerateSession } = require('../middlewares/auth');
 
 class AuthController {
   async register(req, res, next) {
@@ -16,7 +17,8 @@ class AuthController {
 
       const result = await authService.register({ name, email, password, storeName, phone });
 
-      // Automatically log in on registration
+      // Rotate session on registration to prevent session fixation attacks
+      await regenerateSession(req);
       req.session.userId = result.user._id;
 
       return successResponse(res, result, 'Registration successful', 201);

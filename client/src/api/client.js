@@ -2,7 +2,7 @@
  * Centralized API client with credentials support for server-side sessions
  */
 
-const API_BASE = '/api';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 export async function apiRequest(endpoint, { method = 'GET', body, headers = {} } = {}) {
   const config = {

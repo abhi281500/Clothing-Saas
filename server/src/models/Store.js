@@ -11,17 +11,14 @@ const storeSchema = new mongoose.Schema(
     slug: {
       type: String,
       required: [true, 'Store slug is required'],
-      unique: true,
       lowercase: true,
       trim: true,
-      index: true,
       match: [/^[a-z0-9-]+$/, 'Slug can only contain lowercase letters, numbers, and hyphens'],
     },
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      index: true,
     },
     tagline: {
       type: String,

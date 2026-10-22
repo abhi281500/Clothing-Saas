@@ -22,12 +22,15 @@ class StorefrontController {
       const { slug } = req.params;
       const { category, search, sort } = req.query;
       const store = await storeService.getPublicStoreBySlug(slug);
-      const products = await productService.listPublicProducts(store._id, {
-        category,
-        search,
-        sort,
-      });
-      return successResponse(res, { store, products }, 'Store catalog');
+      const [products, allCategories] = await Promise.all([
+        productService.listPublicProducts(store._id, {
+          category,
+          search,
+          sort,
+        }),
+        storeService.getStoreCategories(store._id),
+      ]);
+      return successResponse(res, { store, products, categories: allCategories }, 'Store catalog');
     } catch (error) {
       next(error);
     }

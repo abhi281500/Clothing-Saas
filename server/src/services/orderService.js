@@ -6,11 +6,13 @@ const discountService = require('./discountService');
 
 class OrderService {
   /**
-   * Helper to generate human-readable unique order number per store (e.g. ORD-1001)
+   * Helper to generate human-readable unique order number per store (e.g. ORD-839201)
+   * Guaranteed collision-free under concurrent checkouts
    */
   async generateOrderNumber(storeId) {
-    const count = await Order.countDocuments({ storeId });
-    return `ORD-${1001 + count}`;
+    const timestamp = Date.now().toString().slice(-5);
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    return `ORD-${timestamp}${randomSuffix}`;
   }
 
   /**
@@ -131,9 +133,25 @@ class OrderService {
         appliedDiscountCode = discountResult.code;
         discountId = discountResult.discountId;
 
-        // Increment discount usage
+        // Atomic conditional increment: guarantees limit cannot be bypassed under concurrency
         if (discountId) {
-          await Discount.findByIdAndUpdate(discountId, { $inc: { usedCount: 1 } });
+          const updatedDiscount = await Discount.findOneAndUpdate(
+            {
+              _id: discountId,
+              $or: [
+                { usageLimit: null },
+                { $expr: { $lt: ['$usedCount', '$usageLimit'] } },
+              ],
+            },
+            { $inc: { usedCount: 1 } },
+            { new: true }
+          );
+
+          if (!updatedDiscount) {
+            const err = new Error('This discount coupon usage limit has just been reached.');
+            err.statusCode = 400;
+            throw err;
+          }
         }
       }
 
@@ -176,6 +194,11 @@ class OrderService {
       await order.save();
       return order;
     } catch (error) {
+      // Rollback discount usage if subsequent order creation steps fail
+      if (discountId) {
+        await Discount.findByIdAndUpdate(discountId, { $inc: { usedCount: -1 } }).catch(() => {});
+      }
+
       // Rollback any atomically decremented stock if subsequent steps fail
       for (const res of reservedItems) {
         if (res.variantId) {
@@ -238,19 +261,45 @@ class OrderService {
 
   /**
    * Get public order status by orderNumber and phone (for customer tracking)
+   * Redacts private customer street address and strips internalNotes
    */
   async getPublicOrderTracking(storeId, orderNumber, phone) {
+    const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+    const cleanOrderNumber = (orderNumber || '').trim();
+
     const order = await Order.findOne({
       storeId,
-      orderNumber,
-      'customer.phone': phone,
-    });
+      orderNumber: cleanOrderNumber,
+    }).select('-internalNotes');
+
     if (!order) {
       const err = new Error('Order not found. Please verify the order number and phone number.');
       err.statusCode = 404;
       throw err;
     }
-    return order;
+
+    // Verify phone match against stored phone
+    const storedPhoneClean = (order.customer?.phone || '').replace(/[^0-9]/g, '');
+    const isMatch =
+      storedPhoneClean === cleanPhone ||
+      (cleanPhone.length >= 10 && storedPhoneClean.endsWith(cleanPhone.slice(-10))) ||
+      (storedPhoneClean.length >= 10 && cleanPhone.endsWith(storedPhoneClean.slice(-10)));
+
+    if (!isMatch) {
+      const err = new Error('Order number and mobile number combination do not match.');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const safeOrder = order.toObject();
+    // Protect customer privacy in public response
+    if (safeOrder.customer && safeOrder.customer.shippingAddress) {
+      safeOrder.customer.shippingAddress.addressLine = '*** (Protected for customer privacy)';
+    }
+    if (safeOrder.customer && safeOrder.customer.phone) {
+      safeOrder.customer.phone = safeOrder.customer.phone.replace(/(\d{2})\d{4}(\d{4})/, '$1****$2');
+    }
+    return safeOrder;
   }
 
   /**

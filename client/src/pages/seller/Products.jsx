@@ -1,12 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api/client';
-import { formatINR, toRupees, toPaise } from '../../utils/format';
-import { Plus, Trash2, Edit2, Search, Shirt, CheckCircle2, X } from 'lucide-react';
+import { formatINR, toRupees } from '../../utils/format';
+import { Plus, Trash2, Edit2, Search, Shirt, CheckCircle2, X, Sparkles, Image as ImageIcon } from 'lucide-react';
 
-const CATEGORIES = ['Kurtis', 'Sarees', 'Co-ord Sets', 'Lehengas', 'Suits & Anarkalis', 'Western Wear', 'Accessories'];
+const DEFAULT_CATEGORIES = [
+  'Kurtis',
+  'Sarees',
+  'Co-ord Sets',
+  'Lehengas',
+  'Suits & Anarkalis',
+  'Western Wear',
+  'Dresses',
+  'Dupattas & Shawls',
+  'Accessories',
+];
+
+const IMAGE_PRESETS = [
+  { label: 'Embroidered Kurti', url: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80' },
+  { label: 'Banarasi Silk Saree', url: 'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=800&q=80' },
+  { label: 'Party Lehenga', url: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=800&q=80' },
+  { label: 'Floral Dress', url: 'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?auto=format&fit=crop&w=800&q=80' },
+  { label: 'Chic Co-ord Set', url: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80' },
+];
 
 export default function Products() {
   const [products, setProducts] = useState([]);
+  const [storeCategories, setStoreCategories] = useState(DEFAULT_CATEGORIES);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -16,6 +35,8 @@ export default function Products() {
   const [editingProduct, setEditingProduct] = useState(null);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState('');
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState('');
 
   // Form State
   const [form, setForm] = useState({
@@ -36,13 +57,19 @@ export default function Products() {
       setLoading(true);
       let query = '';
       const params = [];
-      if (search) params.push(`search=${encodeURIComponent(search)}`);
+      if (search.trim()) params.push(`search=${encodeURIComponent(search.trim())}`);
       if (categoryFilter) params.push(`category=${encodeURIComponent(categoryFilter)}`);
       if (params.length) query = `?${params.join('&')}`;
 
       const res = await api.getProducts(query);
       if (res.success) {
-        setProducts(res.data.products || []);
+        const fetchedProducts = res.data.products || [];
+        setProducts(fetchedProducts);
+
+        // Merge existing categories with defaults
+        const distinctFromRes = res.data.categories || [];
+        const mergedCategories = Array.from(new Set([...DEFAULT_CATEGORIES, ...distinctFromRes]));
+        setStoreCategories(mergedCategories);
       }
     } catch (err) {
       console.error('Failed to load products', err);
@@ -62,15 +89,20 @@ export default function Products() {
 
   const openAddModal = () => {
     setEditingProduct(null);
+    setIsCustomCategory(false);
+    setCustomCategoryInput('');
     setForm({
       name: '',
-      category: 'Kurtis',
+      category: storeCategories[0] || 'Kurtis',
       description: '',
       priceRupees: '',
       compareAtPriceRupees: '',
       imageUrl: '',
       isPublished: true,
-      variants: [{ size: 'M', color: 'Default', stock: 10, sku: '' }],
+      variants: [
+        { size: 'M', color: 'Default', stock: 10, sku: '' },
+        { size: 'L', color: 'Default', stock: 10, sku: '' },
+      ],
     });
     setModalError('');
     setIsModalOpen(true);
@@ -78,8 +110,12 @@ export default function Products() {
 
   const openEditModal = (p) => {
     setEditingProduct(p);
+    const isCustom = !storeCategories.includes(p.category);
+    setIsCustomCategory(isCustom);
+    if (isCustom) setCustomCategoryInput(p.category);
+
     setForm({
-      name: p.name,
+      name: p.name || '',
       category: p.category || 'Kurtis',
       description: p.description || '',
       priceRupees: toRupees(p.basePricePaise),
@@ -95,7 +131,7 @@ export default function Products() {
   const handleAddVariant = () => {
     setForm({
       ...form,
-      variants: [...form.variants, { size: 'L', color: 'Default', stock: 5, sku: '' }],
+      variants: [...form.variants, { size: 'XL', color: 'Default', stock: 5, sku: '' }],
     });
   };
 
@@ -108,28 +144,32 @@ export default function Products() {
 
   const handleVariantChange = (idx, field, value) => {
     const updated = [...form.variants];
-    updated[idx][field] = field === 'stock' ? parseInt(value, 10) || 0 : value;
+    updated[idx][field] = field === 'stock' ? Math.max(0, parseInt(value, 10) || 0) : value;
     setForm({ ...form, variants: updated });
   };
 
   const handleSaveProduct = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.priceRupees) {
-      setModalError('Product name and price are required.');
+    if (!form.name.trim() || !form.priceRupees) {
+      setModalError('Product name and selling price are required.');
       return;
     }
+
+    const finalCategory = isCustomCategory
+      ? customCategoryInput.trim() || 'Custom'
+      : form.category;
 
     try {
       setSaving(true);
       setModalError('');
 
       const payload = {
-        name: form.name,
-        category: form.category,
-        description: form.description,
+        name: form.name.trim(),
+        category: finalCategory,
+        description: form.description.trim(),
         priceRupees: parseFloat(form.priceRupees),
         compareAtPriceRupees: form.compareAtPriceRupees ? parseFloat(form.compareAtPriceRupees) : 0,
-        images: form.imageUrl ? [form.imageUrl.trim()] : [],
+        images: form.imageUrl.trim() ? [form.imageUrl.trim()] : [],
         isPublished: form.isPublished,
         variants: form.variants,
       };
@@ -150,7 +190,7 @@ export default function Products() {
   };
 
   const handleDeleteProduct = async (id) => {
-    if (window.confirm('Are you sure you want to remove this product from your store?')) {
+    if (window.confirm('Are you sure you want to remove this product from your boutique?')) {
       try {
         await api.deleteProduct(id);
         loadProducts();
@@ -166,12 +206,12 @@ export default function Products() {
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>Catalog & Inventory</h1>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>Catalog & Apparel Inventory</h1>
           <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
-            Manage boutique apparel, variants, stock, and pricing in Indian Rupees
+            Manage boutique apparel, custom categories, size/color variant stock, and pricing
           </p>
         </div>
-        <button onClick={openAddModal} className="btn-primary">
+        <button onClick={openAddModal} className="btn-primary" style={{ padding: '0.625rem 1.25rem' }}>
           <Plus size={18} />
           <span>Add New Product</span>
         </button>
@@ -179,10 +219,10 @@ export default function Products() {
 
       {/* Filter and Search Bar */}
       <div className="card" style={{ padding: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <form onSubmit={handleSearchSubmit} style={{ display: 'flex', flex: 1, minWidth: '220px', gap: '0.5rem' }}>
+        <form onSubmit={handleSearchSubmit} style={{ display: 'flex', flex: 1, minWidth: '240px', gap: '0.5rem' }}>
           <input
             type="text"
-            placeholder="Search by apparel name..."
+            placeholder="Search by apparel name (e.g. Kurti, Saree)..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="input-field"
@@ -198,8 +238,8 @@ export default function Products() {
           className="input-field"
           style={{ width: 'auto', minWidth: '180px' }}
         >
-          <option value="">All Categories</option>
-          {CATEGORIES.map((c) => (
+          <option value="">All Categories ({products.length} items)</option>
+          {storeCategories.map((c) => (
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
@@ -214,7 +254,7 @@ export default function Products() {
             <Shirt size={48} style={{ margin: '0 auto 1rem auto', strokeWidth: 1.5 }} />
             <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#334155' }}>No products found</h3>
             <p style={{ fontSize: '0.9rem', marginTop: '0.25rem', marginBottom: '1.25rem' }}>
-              Add your first dress, kurti, or saree to start receiving orders.
+              Add your first dress, kurti, saree, or co-ord set to start selling!
             </p>
             <button onClick={openAddModal} className="btn-primary">
               <Plus size={16} />
@@ -226,9 +266,9 @@ export default function Products() {
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
               <thead>
                 <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '0.8rem', textTransform: 'uppercase' }}>
-                  <th style={{ padding: '0.85rem 1rem' }}>Item</th>
+                  <th style={{ padding: '0.85rem 1rem' }}>Apparel Item</th>
                   <th style={{ padding: '0.85rem 1rem' }}>Category</th>
-                  <th style={{ padding: '0.85rem 1rem' }}>Price</th>
+                  <th style={{ padding: '0.85rem 1rem' }}>Price (INR)</th>
                   <th style={{ padding: '0.85rem 1rem' }}>Variants / Stock</th>
                   <th style={{ padding: '0.85rem 1rem' }}>Status</th>
                   <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Actions</th>
@@ -237,11 +277,11 @@ export default function Products() {
               <tbody>
                 {products.map((p) => (
                   <tr key={p._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <td style={{ padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                       <div
                         style={{
-                          width: '44px',
-                          height: '44px',
+                          width: '50px',
+                          height: '56px',
                           borderRadius: '0.375rem',
                           backgroundColor: '#f1f5f9',
                           overflow: 'hidden',
@@ -249,22 +289,32 @@ export default function Products() {
                           alignItems: 'center',
                           justifyContent: 'center',
                           flexShrink: 0,
+                          border: '1px solid #e2e8f0',
                         }}
                       >
                         {p.images && p.images[0] ? (
                           <img src={p.images[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
-                          <Shirt size={20} color="#94a3b8" />
+                          <Shirt size={22} color="#94a3b8" />
                         )}
                       </div>
                       <div>
-                        <p style={{ fontWeight: 600, color: '#0f172a' }}>{p.name}</p>
-                        <p style={{ fontSize: '0.75rem', color: '#94a3b8' }}>/{p.slug}</p>
+                        <p style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem' }}>{p.name}</p>
+                        <p style={{ fontSize: '0.75rem', color: '#64748b' }}>Slug: /{p.slug}</p>
                       </div>
                     </td>
-                    <td style={{ padding: '0.85rem 1rem', color: '#475569' }}>{p.category}</td>
+                    <td style={{ padding: '0.85rem 1rem' }}>
+                      <span style={{ backgroundColor: '#f1f5f9', color: '#334155', padding: '0.2rem 0.55rem', borderRadius: '0.25rem', fontSize: '0.8rem', fontWeight: 600 }}>
+                        {p.category}
+                      </span>
+                    </td>
                     <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#0f172a' }}>
                       {formatINR(p.basePricePaise)}
+                      {p.compareAtPricePaise > p.basePricePaise && (
+                        <span style={{ fontSize: '0.75rem', color: '#94a3b8', textDecoration: 'line-through', marginLeft: '0.35rem' }}>
+                          {formatINR(p.compareAtPricePaise)}
+                        </span>
+                      )}
                     </td>
                     <td style={{ padding: '0.85rem 1rem' }}>
                       <span
@@ -272,7 +322,7 @@ export default function Products() {
                           fontWeight: 600,
                           color: p.totalStock > 0 ? '#166534' : '#991b1b',
                           backgroundColor: p.totalStock > 0 ? '#dcfce7' : '#fee2e2',
-                          padding: '0.2rem 0.5rem',
+                          padding: '0.25rem 0.6rem',
                           borderRadius: '0.25rem',
                           fontSize: '0.8rem',
                         }}
@@ -290,18 +340,18 @@ export default function Products() {
                         <button
                           onClick={() => openEditModal(p)}
                           className="btn-secondary"
-                          style={{ padding: '0.35rem 0.6rem' }}
+                          style={{ padding: '0.4rem 0.65rem' }}
                           title="Edit Product"
                         >
-                          <Edit2 size={14} />
+                          <Edit2 size={15} />
                         </button>
                         <button
                           onClick={() => handleDeleteProduct(p._id)}
                           className="btn-secondary"
-                          style={{ padding: '0.35rem 0.6rem', color: '#e11d48' }}
+                          style={{ padding: '0.4rem 0.65rem', color: '#e11d48' }}
                           title="Delete Product"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={15} />
                         </button>
                       </div>
                     </td>
@@ -330,16 +380,16 @@ export default function Products() {
           <div
             className="card"
             style={{
-              maxWidth: '680px',
+              maxWidth: '720px',
               width: '100%',
-              maxHeight: '90vh',
+              maxHeight: '92vh',
               overflowY: 'auto',
               padding: '2rem',
               position: 'relative',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>
                 {editingProduct ? 'Edit Boutique Apparel' : 'Add New Boutique Apparel'}
               </h2>
               <button
@@ -363,7 +413,7 @@ export default function Products() {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Chanderi Silk Embroidered Anarkali"
+                  placeholder="e.g. Chanderi Silk Embroidered Anarkali Kurti"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   className="input-field"
@@ -371,22 +421,42 @@ export default function Products() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                    Category
-                  </label>
+              {/* Category Selection with Custom Category Support */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Category *</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomCategory(!isCustomCategory)}
+                    style={{ background: 'none', border: 'none', color: '#e11d48', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    {isCustomCategory ? '← Choose Existing Category' : '+ Create Custom Category'}
+                  </button>
+                </div>
+
+                {isCustomCategory ? (
+                  <input
+                    type="text"
+                    placeholder="Type your new custom category (e.g. Bridal Lehengas, Partywear, Jewellery)..."
+                    value={customCategoryInput}
+                    onChange={(e) => setCustomCategoryInput(e.target.value)}
+                    className="input-field"
+                    required
+                  />
+                ) : (
                   <select
                     value={form.category}
                     onChange={(e) => setForm({ ...form, category: e.target.value })}
                     className="input-field"
                   >
-                    {CATEGORIES.map((c) => (
+                    {storeCategories.map((c) => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
-                </div>
+                )}
+              </div>
 
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
                     Selling Price (INR ₹) *
@@ -401,31 +471,69 @@ export default function Products() {
                     required
                   />
                 </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                    Original / MRP Price (INR ₹)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="2499 (for discount badge)"
+                    value={form.compareAtPriceRupees}
+                    onChange={(e) => setForm({ ...form, compareAtPriceRupees: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
               </div>
 
+              {/* Image Input with Curated Presets */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                  Image URL (CDN / Unsplash / Cloudinary)
+                  Image URL (Paste Link or Pick Preset Below)
                 </label>
                 <input
                   type="url"
-                  placeholder="https://images.unsplash.com/photo-..."
+                  placeholder="https://images.unsplash.com/..."
                   value={form.imageUrl}
                   onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
                   className="input-field"
                 />
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                  Store image URLs safely from object storage/CDN.
-                </span>
+
+                <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <Sparkles size={13} color="#e11d48" />
+                    <span>Quick Indian Apparel Presets:</span>
+                  </span>
+                  {IMAGE_PRESETS.map((p) => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => setForm({ ...form, imageUrl: p.url })}
+                      style={{
+                        padding: '0.2rem 0.5rem',
+                        borderRadius: '0.25rem',
+                        border: '1px solid #e2e8f0',
+                        backgroundColor: form.imageUrl === p.url ? '#ffe4e6' : '#ffffff',
+                        color: form.imageUrl === p.url ? '#e11d48' : '#475569',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        fontWeight: 500,
+                      }}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                  Description & Fabric Details
+                  Apparel Description & Fabric Details
                 </label>
                 <textarea
                   rows="3"
-                  placeholder="Pure Chanderi silk with intricate zardozi handwork. Comes with matching dupatta..."
+                  placeholder="Pure Chanderi silk fabric with intricate zardozi hand embroidery. Includes matching organza dupatta..."
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   className="input-field"
@@ -448,27 +556,28 @@ export default function Products() {
                     <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                       <input
                         type="text"
-                        placeholder="Size (e.g. M, L)"
+                        placeholder="Size (S, M, L, XL, Free Size)"
                         value={v.size}
                         onChange={(e) => handleVariantChange(idx, 'size', e.target.value)}
-                        className="input-field"
-                        style={{ width: '120px' }}
-                      />
-                      <input
-                        type="text"
-                        placeholder="Color (e.g. Maroon)"
-                        value={v.color}
-                        onChange={(e) => handleVariantChange(idx, 'color', e.target.value)}
                         className="input-field"
                         style={{ width: '140px' }}
                       />
                       <input
+                        type="text"
+                        placeholder="Color (Maroon, Teal, Rani Pink)"
+                        value={v.color}
+                        onChange={(e) => handleVariantChange(idx, 'color', e.target.value)}
+                        className="input-field"
+                        style={{ width: '150px' }}
+                      />
+                      <input
                         type="number"
+                        min="0"
                         placeholder="Stock"
                         value={v.stock}
                         onChange={(e) => handleVariantChange(idx, 'stock', e.target.value)}
                         className="input-field"
-                        style={{ width: '90px' }}
+                        style={{ width: '100px' }}
                       />
                       {form.variants.length > 1 && (
                         <button
@@ -485,16 +594,16 @@ export default function Products() {
               </div>
 
               {/* Published checkbox */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
                 <input
                   type="checkbox"
                   id="publishedCheckbox"
                   checked={form.isPublished}
                   onChange={(e) => setForm({ ...form, isPublished: e.target.checked })}
-                  style={{ width: '16px', height: '16px' }}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                 />
-                <label htmlFor="publishedCheckbox" style={{ fontSize: '0.875rem', fontWeight: 600 }}>
-                  Publish immediately to public storefront
+                <label htmlFor="publishedCheckbox" style={{ fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
+                  Publish immediately to public boutique storefront
                 </label>
               </div>
 

@@ -94,9 +94,9 @@ export default function CartCheckout() {
 
       const orderPayload = {
         customer: {
-          name: customer.name,
-          phone: customer.phone,
-          email: customer.email,
+          name: customer.name.trim(),
+          phone: cleanPhone,
+          email: customer.email.trim(),
           shippingAddress: {
             addressLine: customer.addressLine,
             city: customer.city,

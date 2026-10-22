@@ -32,25 +32,28 @@ class ProductService {
   /**
    * List products for seller dashboard (scoped to storeId)
    */
-  async listStoreProducts(storeId, { category, search, page = 1, limit = 20 }) {
+  async listStoreProducts(storeId, { category, search, page = 1, limit = 50 }) {
     const query = { storeId };
 
     if (category) {
       query.category = category;
     }
 
-    if (search) {
-      query.name = { $regex: search, $options: 'i' };
+    if (search && search.trim()) {
+      const sanitized = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query.name = { $regex: sanitized, $options: 'i' };
     }
 
     const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
-    const [products, total] = await Promise.all([
+    const [products, total, categories] = await Promise.all([
       Product.find(query).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit, 10)),
       Product.countDocuments(query),
+      Product.distinct('category', { storeId }),
     ]);
 
     return {
       products,
+      categories: categories.filter(Boolean),
       pagination: {
         total,
         page: parseInt(page, 10),
@@ -69,8 +72,9 @@ class ProductService {
       query.category = category;
     }
 
-    if (search) {
-      query.name = { $regex: search, $options: 'i' };
+    if (search && search.trim()) {
+      const sanitized = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query.name = { $regex: sanitized, $options: 'i' };
     }
 
     let sortOption = { createdAt: -1 };

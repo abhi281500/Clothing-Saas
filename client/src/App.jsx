@@ -19,6 +19,7 @@ import StoreCatalog from './pages/storefront/StoreCatalog';
 import ProductDetail from './pages/storefront/ProductDetail';
 import CartCheckout from './pages/storefront/CartCheckout';
 import OrderSuccess from './pages/storefront/OrderSuccess';
+import OrderTrack from './pages/storefront/OrderTrack';
 
 export default function App() {
   return (
@@ -49,6 +50,7 @@ export default function App() {
               <Route path="products/:productSlug" element={<ProductDetail />} />
               <Route path="cart" element={<CartCheckout />} />
               <Route path="order-success/:orderNumber" element={<OrderSuccess />} />
+              <Route path="track" element={<OrderTrack />} />
             </Route>
 
             {/* Fallback */}

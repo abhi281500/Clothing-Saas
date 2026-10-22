@@ -88,6 +88,13 @@ export default function StorefrontLayout() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+            <Link
+              to={`/store/${slug}/track`}
+              style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+            >
+              <span>Track Order</span>
+            </Link>
+
             {store.whatsappNumber && (
               <a
                 href={`https://wa.me/${store.whatsappNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${store.name}, I want to enquire about your boutique collection!`)}`}
@@ -147,17 +154,27 @@ export default function StorefrontLayout() {
         <Outlet context={{ store }} />
       </main>
 
-      {/* Boutique Footer */}
-      <footer style={{ backgroundColor: '#ffffff', borderTop: '1px solid #f0eee9', marginTop: 'auto', padding: '2rem 1rem', textAlign: 'center', color: '#78716c', fontSize: '0.85rem' }}>
-        <p style={{ fontWeight: 600, color: '#1c1917', fontSize: '1rem', fontFamily: 'Playfair Display, serif' }}>{store.name}</p>
+      {/* Boutique Footer with Store info and Builder Agency Contact */}
+      <footer style={{ backgroundColor: '#ffffff', borderTop: '1px solid #f0eee9', marginTop: 'auto', padding: '2.5rem 1rem 2rem 1rem', textAlign: 'center', color: '#78716c', fontSize: '0.85rem' }}>
+        <p style={{ fontWeight: 700, color: '#1c1917', fontSize: '1.15rem', fontFamily: 'Playfair Display, serif' }}>{store.name}</p>
         {store.address?.city && (
-          <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', marginTop: '0.25rem' }}>
-            <MapPin size={14} />
+          <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', marginTop: '0.25rem', color: '#44403c' }}>
+            <MapPin size={15} color={primaryColor} />
             <span>{store.address.city}, {store.address.state}</span>
           </p>
         )}
-        <p style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: '#a8a29e' }}>
-          Powered by BoutiqueSaaS • Multi-Tenant Commerce Platform
+
+        <div style={{ maxWidth: '600px', margin: '1.5rem auto', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem', border: '1px solid #e2e8f0', fontSize: '0.8rem', color: '#334155' }}>
+          <p style={{ fontWeight: 700, color: '#0f172a', marginBottom: '0.25rem' }}>
+            Interested in launching a boutique store like this for your brand?
+          </p>
+          <p style={{ color: '#64748b' }}>
+            Contact Builder: <strong>Abhishek</strong> • 📞 <a href="tel:+916290197418" style={{ color: '#e11d48', fontWeight: 600 }}>+91 6290197418</a> • ✉️ <a href="mailto:abhi281500@gmail.com" style={{ color: '#e11d48', fontWeight: 600 }}>abhi281500@gmail.com</a>
+          </p>
+        </div>
+
+        <p style={{ fontSize: '0.75rem', color: '#a8a29e' }}>
+          Powered by BoutiqueSaaS • Multi-Tenant Clothing Commerce Platform
         </p>
       </footer>
     </div>

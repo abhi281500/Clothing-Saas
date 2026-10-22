@@ -73,9 +73,54 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Builder / Platform Contact Section */}
+      <section style={{ maxWidth: '1100px', margin: '1rem auto 4rem auto', padding: '0 1.5rem', width: '100%' }}>
+        <div
+          style={{
+            backgroundColor: '#0f172a',
+            borderRadius: '1rem',
+            padding: '2.5rem 2rem',
+            color: '#ffffff',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1.5rem',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+          }}
+        >
+          <div>
+            <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: '#f43f5e', fontWeight: 800, letterSpacing: '0.08em' }}>
+              Direct Builder & Custom SaaS Development
+            </span>
+            <h2 style={{ fontSize: '1.75rem', fontWeight: 700, marginTop: '0.35rem' }}>
+              Want to launch or buy a Boutique Platform for your brand?
+            </h2>
+            <p style={{ color: '#94a3b8', fontSize: '1rem', marginTop: '0.5rem', maxWidth: '650px', lineHeight: 1.5 }}>
+              Talk directly with the developer to launch your customized clothing ecommerce web app with WhatsApp orders, inventory sync, and Indian payment gateways.
+            </p>
+            <div style={{ marginTop: '1rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '0.95rem' }}>
+              <span>📞 Phone / WhatsApp: <strong style={{ color: '#ffffff' }}>+91 6290197418</strong></span>
+              <span>✉️ Email: <strong style={{ color: '#ffffff' }}>abhi281500@gmail.com</strong></span>
+            </div>
+          </div>
+
+          <a
+            href="https://wa.me/916290197418?text=Hello%20Abhishek!%20I%20am%20interested%20in%20the%20Clothing%20Commerce%20SaaS%20platform%20for%20my%20business."
+            target="_blank"
+            rel="noreferrer"
+            className="btn-whatsapp"
+            style={{ padding: '0.85rem 1.5rem', fontSize: '1rem', borderRadius: '0.5rem' }}
+          >
+            <span>Chat on WhatsApp (+91 6290197418)</span>
+          </a>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer style={{ marginTop: 'auto', borderTop: '1px solid #e2e8f0', padding: '2rem 1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
         <p>© 2026 BoutiqueSaaS • Multi-Tenant Clothing Commerce Platform</p>
+        <p style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: '#cbd5e1' }}>Built by Abhishek (abhi281500@gmail.com • +91 6290197418)</p>
       </footer>
     </div>
   );
