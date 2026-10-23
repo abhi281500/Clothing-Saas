@@ -29,11 +29,15 @@ class ProductController {
   async createProduct(req, res, next) {
     try {
       const { name, basePricePaise, priceRupees } = req.body;
-      if (!name) {
+      if (!name || !name.trim()) {
         return errorResponse(res, 'Product name is required', 400);
       }
       if (basePricePaise === undefined && priceRupees === undefined) {
-        return errorResponse(res, 'Price is required', 400);
+        return errorResponse(res, 'Selling price is required', 400);
+      }
+      const priceVal = basePricePaise !== undefined ? Number(basePricePaise) : Number(priceRupees);
+      if (isNaN(priceVal) || priceVal <= 0) {
+        return errorResponse(res, 'Selling price must be greater than ₹0', 400);
       }
 
       const product = await productService.createProduct(req.storeId, req.body);

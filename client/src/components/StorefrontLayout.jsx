@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Outlet, Link } from 'react-router-dom';
+import { useParams, Outlet, Link, useLocation } from 'react-router-dom';
 import { api } from '../api/client';
 import { useCart } from '../context/CartContext';
-import { ShoppingBag, MessageCircle, MapPin } from 'lucide-react';
+import { ShoppingBag, MessageCircle, MapPin, Compass, Search, Clock } from 'lucide-react';
 
 const InstagramIcon = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -14,6 +14,7 @@ const InstagramIcon = ({ size = 20 }) => (
 
 export default function StorefrontLayout() {
   const { slug } = useParams();
+  const location = useLocation();
   const { getCart } = useCart();
   const [store, setStore] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,6 +22,11 @@ export default function StorefrontLayout() {
 
   const cart = getCart(slug);
   const totalCartCount = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+
+  // Derive active navigation state
+  const isCatalogActive = location.pathname === `/store/${slug}` || location.pathname === `/store/${slug}/`;
+  const isTrackActive = location.pathname.startsWith(`/store/${slug}/track`);
+  const isCartActive = location.pathname.startsWith(`/store/${slug}/cart`);
 
   useEffect(() => {
     async function loadStore() {
@@ -72,61 +78,104 @@ export default function StorefrontLayout() {
 
       {/* Boutique Header */}
       <header style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #f0eee9', position: 'sticky', top: 0, zIndex: 40, boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
           
-          <div>
+          {/* Brand Logo & Name */}
+          <div style={{ flexShrink: 0 }}>
             <Link to={`/store/${slug}`} style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.6rem', fontWeight: 700, color: '#1c1917', letterSpacing: '-0.02em' }}>
+              <span style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.5rem', fontWeight: 700, color: '#1c1917', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
                 {store.name}
               </span>
               {store.tagline && (
-                <span style={{ fontSize: '0.8rem', color: '#78716c', marginTop: '-2px' }}>
+                <span style={{ fontSize: '0.75rem', color: '#78716c', marginTop: '2px' }}>
                   {store.tagline}
                 </span>
               )}
             </Link>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+          {/* Navigation Links with Active Highlighting */}
+          <nav style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {/* Catalog Link */}
+            <Link
+              to={`/store/${slug}`}
+              aria-current={isCatalogActive ? 'page' : undefined}
+              style={{
+                fontSize: '0.875rem',
+                fontWeight: isCatalogActive ? 700 : 600,
+                color: isCatalogActive ? primaryColor : '#64748b',
+                backgroundColor: isCatalogActive ? '#ffe4e6' : 'transparent',
+                padding: '0.4rem 0.75rem',
+                borderRadius: '0.375rem',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              Catalog
+            </Link>
+
+            {/* Track Order Link with Active Highlight */}
             <Link
               to={`/store/${slug}/track`}
-              style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+              aria-current={isTrackActive ? 'page' : undefined}
+              style={{
+                fontSize: '0.875rem',
+                fontWeight: isTrackActive ? 700 : 600,
+                color: isTrackActive ? primaryColor : '#64748b',
+                backgroundColor: isTrackActive ? '#ffe4e6' : 'transparent',
+                padding: '0.4rem 0.75rem',
+                borderRadius: '0.375rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+                transition: 'all 0.15s ease',
+              }}
             >
+              <Clock size={15} />
               <span>Track Order</span>
             </Link>
 
+            {/* WhatsApp Contact */}
             {store.whatsappNumber && (
               <a
                 href={`https://wa.me/${store.whatsappNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${store.name}, I want to enquire about your boutique collection!`)}`}
                 target="_blank"
                 rel="noreferrer"
                 className="btn-whatsapp"
-                style={{ padding: '0.45rem 0.85rem', fontSize: '0.85rem' }}
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.825rem' }}
               >
-                <MessageCircle size={16} />
-                <span style={{ display: 'none', md: 'inline' }}>WhatsApp Us</span>
+                <MessageCircle size={15} />
+                <span>WhatsApp Us</span>
               </a>
             )}
 
+            {/* Instagram Link */}
             {store.instagramHandle && (
               <a
                 href={`https://instagram.com/${store.instagramHandle.replace('@', '')}`}
                 target="_blank"
                 rel="noreferrer"
-                style={{ color: '#e1306c', padding: '0.45rem', display: 'flex', alignItems: 'center' }}
+                style={{ color: '#e1306c', padding: '0.4rem', display: 'flex', alignItems: 'center' }}
                 title="Follow on Instagram"
+                aria-label="Instagram profile"
               >
-                <InstagramIcon size={22} />
+                <InstagramIcon size={20} />
               </a>
             )}
 
-            {/* Cart Button */}
+            {/* Bag Button with Active Highlight */}
             <Link
               to={`/store/${slug}/cart`}
+              aria-current={isCartActive ? 'page' : undefined}
               className="btn-primary"
-              style={{ backgroundColor: primaryColor, padding: '0.45rem 0.95rem', fontSize: '0.85rem', position: 'relative' }}
+              style={{
+                backgroundColor: primaryColor,
+                padding: '0.45rem 0.95rem',
+                fontSize: '0.85rem',
+                position: 'relative',
+                boxShadow: isCartActive ? `0 0 0 3px rgba(225, 29, 72, 0.25)` : 'none',
+              }}
             >
-              <ShoppingBag size={17} />
+              <ShoppingBag size={16} />
               <span>Bag</span>
               {totalCartCount > 0 && (
                 <span
@@ -144,7 +193,7 @@ export default function StorefrontLayout() {
                 </span>
               )}
             </Link>
-          </div>
+          </nav>
 
         </div>
       </header>

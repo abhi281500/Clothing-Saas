@@ -2,6 +2,7 @@ const storeService = require('../services/storeService');
 const productService = require('../services/productService');
 const orderService = require('../services/orderService');
 const discountService = require('../services/discountService');
+const campaignService = require('../services/campaignService');
 const { successResponse, errorResponse } = require('../utils/apiResponse');
 
 class StorefrontController {
@@ -11,6 +12,18 @@ class StorefrontController {
       const { slug } = req.params;
       const store = await storeService.getPublicStoreBySlug(slug);
       return successResponse(res, store, 'Store details');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Get public store deals and promotions
+  async getDeals(req, res, next) {
+    try {
+      const { slug } = req.params;
+      const store = await storeService.getPublicStoreBySlug(slug);
+      const deals = await campaignService.getPublicStoreDeals(store._id);
+      return successResponse(res, deals, 'Store deals and promotions');
     } catch (error) {
       next(error);
     }

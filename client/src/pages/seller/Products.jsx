@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../../api/client';
 import { formatINR, toRupees } from '../../utils/format';
-import { Plus, Trash2, Edit2, Search, Shirt, CheckCircle2, X, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { Plus, Trash2, Edit2, Search, Shirt, X, Sparkles, Image as ImageIcon, AlertCircle } from 'lucide-react';
 
 const DEFAULT_CATEGORIES = [
   'Kurtis',
@@ -23,6 +24,20 @@ const IMAGE_PRESETS = [
   { label: 'Chic Co-ord Set', url: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80' },
 ];
 
+const INITIAL_FORM = {
+  name: '',
+  category: 'Kurtis',
+  description: '',
+  priceRupees: '',
+  compareAtPriceRupees: '',
+  imageUrl: '',
+  isPublished: true,
+  variants: [
+    { size: 'M', color: 'Default', stock: 10, sku: '' },
+    { size: 'L', color: 'Default', stock: 10, sku: '' },
+  ],
+};
+
 export default function Products() {
   const [products, setProducts] = useState([]);
   const [storeCategories, setStoreCategories] = useState(DEFAULT_CATEGORIES);
@@ -37,20 +52,10 @@ export default function Products() {
   const [modalError, setModalError] = useState('');
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [customCategoryInput, setCustomCategoryInput] = useState('');
+  const [isDirty, setIsDirty] = useState(false);
 
   // Form State
-  const [form, setForm] = useState({
-    name: '',
-    category: 'Kurtis',
-    description: '',
-    priceRupees: '',
-    compareAtPriceRupees: '',
-    imageUrl: '',
-    isPublished: true,
-    variants: [
-      { size: 'M', color: 'Standard', stock: 10, sku: '' },
-    ],
-  });
+  const [form, setForm] = useState(INITIAL_FORM);
 
   const loadProducts = async () => {
     try {
@@ -92,19 +97,11 @@ export default function Products() {
     setIsCustomCategory(false);
     setCustomCategoryInput('');
     setForm({
-      name: '',
+      ...INITIAL_FORM,
       category: storeCategories[0] || 'Kurtis',
-      description: '',
-      priceRupees: '',
-      compareAtPriceRupees: '',
-      imageUrl: '',
-      isPublished: true,
-      variants: [
-        { size: 'M', color: 'Default', stock: 10, sku: '' },
-        { size: 'L', color: 'Default', stock: 10, sku: '' },
-      ],
     });
     setModalError('');
+    setIsDirty(false);
     setIsModalOpen(true);
   };
 
@@ -121,43 +118,121 @@ export default function Products() {
       priceRupees: toRupees(p.basePricePaise),
       compareAtPriceRupees: p.compareAtPricePaise ? toRupees(p.compareAtPricePaise) : '',
       imageUrl: p.images && p.images.length > 0 ? p.images[0] : '',
-      isPublished: p.isPublished,
-      variants: p.variants && p.variants.length > 0 ? p.variants : [{ size: 'Free Size', color: 'Default', stock: p.totalStock, sku: '' }],
+      isPublished: p.isPublished !== undefined ? p.isPublished : true,
+      variants: p.variants && p.variants.length > 0
+        ? p.variants.map(v => ({ size: v.size || 'Free Size', color: v.color || 'Default', stock: v.stock || 0, sku: v.sku || '' }))
+        : [{ size: 'Free Size', color: 'Default', stock: p.totalStock || 0, sku: '' }],
     });
     setModalError('');
+    setIsDirty(false);
     setIsModalOpen(true);
   };
 
+  const handleCloseModal = useCallback(() => {
+    if (isDirty) {
+      const confirmDiscard = window.confirm('You have unsaved changes in this product form. Are you sure you want to discard them?');
+      if (!confirmDiscard) return;
+    }
+    setIsModalOpen(false);
+    setEditingProduct(null);
+    setIsDirty(false);
+    setModalError('');
+  }, [isDirty]);
+
+  // Handle Escape key and body scroll locking
+  useEffect(() => {
+    if (!isModalOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        handleCloseModal();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isModalOpen, handleCloseModal]);
+
+  const updateFormField = (field, value) => {
+    setIsDirty(true);
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
   const handleAddVariant = () => {
-    setForm({
-      ...form,
-      variants: [...form.variants, { size: 'XL', color: 'Default', stock: 5, sku: '' }],
-    });
+    setIsDirty(true);
+    setForm((prev) => ({
+      ...prev,
+      variants: [...prev.variants, { size: 'XL', color: 'Default', stock: 5, sku: '' }],
+    }));
   };
 
   const handleRemoveVariant = (idx) => {
-    setForm({
-      ...form,
-      variants: form.variants.filter((_, i) => i !== idx),
-    });
+    if (form.variants.length <= 1) return;
+    setIsDirty(true);
+    setForm((prev) => ({
+      ...prev,
+      variants: prev.variants.filter((_, i) => i !== idx),
+    }));
   };
 
   const handleVariantChange = (idx, field, value) => {
+    setIsDirty(true);
     const updated = [...form.variants];
-    updated[idx][field] = field === 'stock' ? Math.max(0, parseInt(value, 10) || 0) : value;
-    setForm({ ...form, variants: updated });
+    updated[idx] = {
+      ...updated[idx],
+      [field]: field === 'stock' ? Math.max(0, parseInt(value, 10) || 0) : value,
+    };
+    setForm((prev) => ({ ...prev, variants: updated }));
   };
 
   const handleSaveProduct = async (e) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.priceRupees) {
-      setModalError('Product name and selling price are required.');
+
+    // 1. Validate Product Name
+    if (!form.name.trim()) {
+      setModalError('Product Name is required.');
       return;
     }
 
-    const finalCategory = isCustomCategory
-      ? customCategoryInput.trim() || 'Custom'
-      : form.category;
+    // 2. Validate Price
+    const numericPrice = parseFloat(form.priceRupees);
+    if (isNaN(numericPrice) || numericPrice <= 0) {
+      setModalError('Selling Price must be a valid positive number greater than ₹0.');
+      return;
+    }
+
+    // 3. Validate Original / Compare At Price
+    const numericCompare = form.compareAtPriceRupees ? parseFloat(form.compareAtPriceRupees) : 0;
+    if (numericCompare > 0 && numericCompare < numericPrice) {
+      setModalError(`Original/MRP Price (₹${numericCompare}) cannot be lower than Selling Price (₹${numericPrice}).`);
+      return;
+    }
+
+    // 4. Validate Category
+    let finalCategory = form.category;
+    if (isCustomCategory) {
+      const trimmedCustom = customCategoryInput.trim();
+      if (!trimmedCustom) {
+        setModalError('Please enter a custom category name.');
+        return;
+      }
+      finalCategory = trimmedCustom;
+    }
+
+    // 5. Validate Variants
+    for (let i = 0; i < form.variants.length; i++) {
+      const v = form.variants[i];
+      if (v.stock < 0 || isNaN(v.stock)) {
+        setModalError(`Variant #${i + 1} (${v.size} / ${v.color}) cannot have negative stock.`);
+        return;
+      }
+    }
 
     try {
       setSaving(true);
@@ -167,11 +242,16 @@ export default function Products() {
         name: form.name.trim(),
         category: finalCategory,
         description: form.description.trim(),
-        priceRupees: parseFloat(form.priceRupees),
-        compareAtPriceRupees: form.compareAtPriceRupees ? parseFloat(form.compareAtPriceRupees) : 0,
+        priceRupees: numericPrice,
+        compareAtPriceRupees: numericCompare > 0 ? numericCompare : 0,
         images: form.imageUrl.trim() ? [form.imageUrl.trim()] : [],
         isPublished: form.isPublished,
-        variants: form.variants,
+        variants: form.variants.map((v, idx) => ({
+          size: v.size ? v.size.trim() : 'Free Size',
+          color: v.color ? v.color.trim() : 'Default',
+          stock: Math.max(0, parseInt(v.stock, 10) || 0),
+          sku: v.sku ? v.sku.trim() : '',
+        })),
       };
 
       if (editingProduct) {
@@ -180,6 +260,12 @@ export default function Products() {
         await api.createProduct(payload);
       }
 
+      // Add new custom category to state if not present
+      if (isCustomCategory && !storeCategories.includes(finalCategory)) {
+        setStoreCategories((prev) => [...prev, finalCategory]);
+      }
+
+      setIsDirty(false);
       setIsModalOpen(false);
       loadProducts();
     } catch (err) {
@@ -199,6 +285,14 @@ export default function Products() {
       }
     }
   };
+
+  // Calculate discount percentage preview
+  const sellingNum = parseFloat(form.priceRupees) || 0;
+  const mrpNum = parseFloat(form.compareAtPriceRupees) || 0;
+  const discountPercentPreview =
+    mrpNum > sellingNum && sellingNum > 0
+      ? Math.round(((mrpNum - sellingNum) / mrpNum) * 100)
+      : 0;
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -222,12 +316,12 @@ export default function Products() {
         <form onSubmit={handleSearchSubmit} style={{ display: 'flex', flex: 1, minWidth: '240px', gap: '0.5rem' }}>
           <input
             type="text"
-            placeholder="Search by apparel name (e.g. Kurti, Saree)..."
+            placeholder="Search by apparel name, category, or color..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="input-field"
           />
-          <button type="submit" className="btn-secondary" style={{ padding: '0.625rem 1rem' }}>
+          <button type="submit" className="btn-secondary" style={{ padding: '0.625rem 1rem' }} aria-label="Search">
             <Search size={16} />
           </button>
         </form>
@@ -293,7 +387,15 @@ export default function Products() {
                         }}
                       >
                         {p.images && p.images[0] ? (
-                          <img src={p.images[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img
+                            src={p.images[0]}
+                            alt={p.name}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              e.currentTarget.parentElement.innerHTML = '<span style="color:#94a3b8;font-size:10px;">No Image</span>';
+                            }}
+                          />
                         ) : (
                           <Shirt size={22} color="#94a3b8" />
                         )}
@@ -363,263 +465,451 @@ export default function Products() {
         )}
       </div>
 
-      {/* Product Add / Edit Modal */}
-      {isModalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 50,
-            padding: '1rem',
-          }}
-        >
+      {/* Product Add / Edit Modal — Rendered via Portal directly into document.body */}
+      {isModalOpen &&
+        createPortal(
           <div
-            className="card"
             style={{
-              maxWidth: '720px',
-              width: '100%',
-              maxHeight: '92vh',
-              overflowY: 'auto',
-              padding: '2rem',
-              position: 'relative',
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.6)',
+              backdropFilter: 'blur(3px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+              padding: '1rem',
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) handleCloseModal();
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>
-                {editingProduct ? 'Edit Boutique Apparel' : 'Add New Boutique Apparel'}
-              </h2>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+            <div
+              className="card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="product-modal-title"
+              style={{
+                maxWidth: '740px',
+                width: '100%',
+                maxHeight: 'min(90vh, 850px)',
+                display: 'flex',
+                flexDirection: 'column',
+                padding: '0',
+                position: 'relative',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                borderRadius: '0.75rem',
+                overflow: 'hidden',
+                backgroundColor: '#ffffff',
+              }}
+            >
+              {/* Sticky Modal Header — Never scrolls away */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '1.25rem 1.75rem',
+                  borderBottom: '1px solid #e2e8f0',
+                  backgroundColor: '#ffffff',
+                  flexShrink: 0,
+                }}
               >
-                <X size={20} />
-              </button>
-            </div>
-
-            {modalError && (
-              <div style={{ padding: '0.75rem', backgroundColor: '#fee2e2', color: '#991b1b', borderRadius: '0.5rem', marginBottom: '1rem', fontSize: '0.85rem' }}>
-                {modalError}
-              </div>
-            )}
-
-            <form onSubmit={handleSaveProduct} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                  Product Name *
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Chanderi Silk Embroidered Anarkali Kurti"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="input-field"
-                  required
-                />
-              </div>
-
-              {/* Category Selection with Custom Category Support */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Category *</label>
-                  <button
-                    type="button"
-                    onClick={() => setIsCustomCategory(!isCustomCategory)}
-                    style={{ background: 'none', border: 'none', color: '#e11d48', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    {isCustomCategory ? '← Choose Existing Category' : '+ Create Custom Category'}
-                  </button>
+                <div>
+                  <h2 id="product-modal-title" style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>
+                    {editingProduct ? 'Edit Boutique Apparel' : 'Add New Boutique Apparel'}
+                  </h2>
+                  <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.15rem' }}>
+                    {editingProduct ? 'Update product pricing, images, and inventory variants' : 'List a new apparel item to your public store catalog'}
+                  </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  aria-label="Close dialog"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#64748b',
+                    padding: '0.4rem',
+                    borderRadius: '0.375rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
 
-                {isCustomCategory ? (
-                  <input
-                    type="text"
-                    placeholder="Type your new custom category (e.g. Bridal Lehengas, Partywear, Jewellery)..."
-                    value={customCategoryInput}
-                    onChange={(e) => setCustomCategoryInput(e.target.value)}
-                    className="input-field"
-                    required
-                  />
-                ) : (
-                  <select
-                    value={form.category}
-                    onChange={(e) => setForm({ ...form, category: e.target.value })}
-                    className="input-field"
+              {/* Scrollable Form Body — Independently scrolls, never hides header or footer */}
+              <div
+                style={{
+                  padding: '1.5rem 1.75rem',
+                  overflowY: 'auto',
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1.25rem',
+                }}
+              >
+                {modalError && (
+                  <div
+                    style={{
+                      padding: '0.75rem 1rem',
+                      backgroundColor: '#fee2e2',
+                      color: '#991b1b',
+                      borderRadius: '0.5rem',
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      border: '1px solid #fecaca',
+                    }}
                   >
-                    {storeCategories.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
+                    <AlertCircle size={16} />
+                    <span>{modalError}</span>
+                  </div>
                 )}
-              </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                    Selling Price (INR ₹) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="1499"
-                    value={form.priceRupees}
-                    onChange={(e) => setForm({ ...form, priceRupees: e.target.value })}
-                    className="input-field"
-                    required
-                  />
-                </div>
+                <form id="product-form" onSubmit={handleSaveProduct} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  {/* Product Name */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', color: '#1e293b' }}>
+                      Product Name *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Chanderi Silk Embroidered Anarkali Kurti"
+                      value={form.name}
+                      onChange={(e) => updateFormField('name', e.target.value)}
+                      className="input-field"
+                      required
+                      autoFocus
+                    />
+                  </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                    Original / MRP Price (INR ₹)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="2499 (for discount badge)"
-                    value={form.compareAtPriceRupees}
-                    onChange={(e) => setForm({ ...form, compareAtPriceRupees: e.target.value })}
-                    className="input-field"
-                  />
-                </div>
-              </div>
+                  {/* Category Selection with Custom Category Toggle */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                      <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1e293b' }}>
+                        Category *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsDirty(true);
+                          setIsCustomCategory(!isCustomCategory);
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#e11d48',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {isCustomCategory ? '← Choose Existing Category' : '+ Create Custom Category'}
+                      </button>
+                    </div>
 
-              {/* Image Input with Curated Presets */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                  Image URL (Paste Link or Pick Preset Below)
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://images.unsplash.com/..."
-                  value={form.imageUrl}
-                  onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-                  className="input-field"
-                />
-
-                <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                    <Sparkles size={13} color="#e11d48" />
-                    <span>Quick Indian Apparel Presets:</span>
-                  </span>
-                  {IMAGE_PRESETS.map((p) => (
-                    <button
-                      key={p.label}
-                      type="button"
-                      onClick={() => setForm({ ...form, imageUrl: p.url })}
-                      style={{
-                        padding: '0.2rem 0.5rem',
-                        borderRadius: '0.25rem',
-                        border: '1px solid #e2e8f0',
-                        backgroundColor: form.imageUrl === p.url ? '#ffe4e6' : '#ffffff',
-                        color: form.imageUrl === p.url ? '#e11d48' : '#475569',
-                        fontSize: '0.75rem',
-                        cursor: 'pointer',
-                        fontWeight: 500,
-                      }}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                  Apparel Description & Fabric Details
-                </label>
-                <textarea
-                  rows="3"
-                  placeholder="Pure Chanderi silk fabric with intricate zardozi hand embroidery. Includes matching organza dupatta..."
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="input-field"
-                ></textarea>
-              </div>
-
-              {/* Size & Color Variants */}
-              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: 700 }}>
-                    Size & Color Variants & Inventory
-                  </label>
-                  <button type="button" onClick={handleAddVariant} className="btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem' }}>
-                    + Add Variant
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {form.variants.map((v, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    {isCustomCategory ? (
                       <input
                         type="text"
-                        placeholder="Size (S, M, L, XL, Free Size)"
-                        value={v.size}
-                        onChange={(e) => handleVariantChange(idx, 'size', e.target.value)}
+                        placeholder="Type new category (e.g. Bridal Lehengas, Organza Sarees, Co-ords)..."
+                        value={customCategoryInput}
+                        onChange={(e) => {
+                          setIsDirty(true);
+                          setCustomCategoryInput(e.target.value);
+                        }}
                         className="input-field"
-                        style={{ width: '140px' }}
+                        required
                       />
-                      <input
-                        type="text"
-                        placeholder="Color (Maroon, Teal, Rani Pink)"
-                        value={v.color}
-                        onChange={(e) => handleVariantChange(idx, 'color', e.target.value)}
+                    ) : (
+                      <select
+                        value={form.category}
+                        onChange={(e) => updateFormField('category', e.target.value)}
                         className="input-field"
-                        style={{ width: '150px' }}
-                      />
+                      >
+                        {storeCategories.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {/* Price Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', color: '#1e293b' }}>
+                        Selling Price (INR ₹) *
+                      </label>
                       <input
                         type="number"
-                        min="0"
-                        placeholder="Stock"
-                        value={v.stock}
-                        onChange={(e) => handleVariantChange(idx, 'stock', e.target.value)}
+                        step="1"
+                        min="1"
+                        placeholder="1499"
+                        value={form.priceRupees}
+                        onChange={(e) => updateFormField('priceRupees', e.target.value)}
                         className="input-field"
-                        style={{ width: '100px' }}
+                        required
                       />
-                      {form.variants.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveVariant(idx)}
-                          style={{ background: 'none', border: 'none', color: '#e11d48', cursor: 'pointer', padding: '0.4rem' }}
+                    </div>
+
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                        <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1e293b' }}>
+                          Original / MRP Price (INR ₹)
+                        </label>
+                        {discountPercentPreview > 0 && (
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#16a34a', backgroundColor: '#dcfce7', padding: '0.1rem 0.4rem', borderRadius: '0.25rem' }}>
+                            {discountPercentPreview}% OFF
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        placeholder="2499 (Optional, shows strikethrough)"
+                        value={form.compareAtPriceRupees}
+                        onChange={(e) => updateFormField('compareAtPriceRupees', e.target.value)}
+                        className="input-field"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Image URL & Presets */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', color: '#1e293b' }}>
+                      Apparel Image URL
+                    </label>
+                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                      <input
+                        type="url"
+                        placeholder="https://images.unsplash.com/..."
+                        value={form.imageUrl}
+                        onChange={(e) => updateFormField('imageUrl', e.target.value)}
+                        className="input-field"
+                        style={{ flex: 1 }}
+                      />
+                      {form.imageUrl.trim() && (
+                        <div
+                          style={{
+                            width: '42px',
+                            height: '42px',
+                            borderRadius: '0.375rem',
+                            border: '1px solid #cbd5e1',
+                            overflow: 'hidden',
+                            flexShrink: 0,
+                            backgroundColor: '#f8fafc',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
                         >
-                          <Trash2 size={16} />
-                        </button>
+                          <img
+                            src={form.imageUrl}
+                            alt="Preview"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        </div>
                       )}
                     </div>
-                  ))}
-                </div>
+
+                    <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <Sparkles size={13} color="#e11d48" />
+                        <span>Quick Presets:</span>
+                      </span>
+                      {IMAGE_PRESETS.map((p) => (
+                        <button
+                          key={p.label}
+                          type="button"
+                          onClick={() => updateFormField('imageUrl', p.url)}
+                          style={{
+                            padding: '0.2rem 0.5rem',
+                            borderRadius: '0.25rem',
+                            border: '1px solid #e2e8f0',
+                            backgroundColor: form.imageUrl === p.url ? '#ffe4e6' : '#ffffff',
+                            color: form.imageUrl === p.url ? '#e11d48' : '#475569',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.4rem', color: '#1e293b' }}>
+                      Apparel Description & Fabric Details
+                    </label>
+                    <textarea
+                      rows="3"
+                      placeholder="Pure Chanderi silk fabric with intricate zardozi hand embroidery. Includes matching organza dupatta..."
+                      value={form.description}
+                      onChange={(e) => updateFormField('description', e.target.value)}
+                      className="input-field"
+                    ></textarea>
+                  </div>
+
+                  {/* Size & Color Variants */}
+                  <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                      <div>
+                        <label style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a' }}>
+                          Size & Color Variants & Inventory
+                        </label>
+                        <p style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                          Specify available sizes, shades, and individual stock quantities
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddVariant}
+                        className="btn-secondary"
+                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+                      >
+                        + Add Variant
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {form.variants.map((v, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            display: 'flex',
+                            gap: '0.5rem',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            backgroundColor: '#f8fafc',
+                            padding: '0.5rem',
+                            borderRadius: '0.375rem',
+                            border: '1px solid #e2e8f0',
+                          }}
+                        >
+                          <div style={{ flex: '1 1 120px' }}>
+                            <label style={{ display: 'block', fontSize: '0.7rem', color: '#64748b', marginBottom: '0.15rem' }}>Size</label>
+                            <input
+                              type="text"
+                              placeholder="Size (S, M, L, Free Size)"
+                              value={v.size}
+                              onChange={(e) => handleVariantChange(idx, 'size', e.target.value)}
+                              className="input-field"
+                              style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                            />
+                          </div>
+
+                          <div style={{ flex: '1 1 130px' }}>
+                            <label style={{ display: 'block', fontSize: '0.7rem', color: '#64748b', marginBottom: '0.15rem' }}>Color</label>
+                            <input
+                              type="text"
+                              placeholder="Color (Maroon, Teal)"
+                              value={v.color}
+                              onChange={(e) => handleVariantChange(idx, 'color', e.target.value)}
+                              className="input-field"
+                              style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                            />
+                          </div>
+
+                          <div style={{ width: '90px' }}>
+                            <label style={{ display: 'block', fontSize: '0.7rem', color: '#64748b', marginBottom: '0.15rem' }}>Stock</label>
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="Stock"
+                              value={v.stock}
+                              onChange={(e) => handleVariantChange(idx, 'stock', e.target.value)}
+                              className="input-field"
+                              style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                            />
+                          </div>
+
+                          {form.variants.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveVariant(idx)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#e11d48',
+                                cursor: 'pointer',
+                                padding: '0.4rem',
+                                marginTop: '1rem',
+                              }}
+                              title="Remove Variant"
+                              aria-label={`Remove variant ${idx + 1}`}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Published Checkbox */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingTop: '0.25rem' }}>
+                    <input
+                      type="checkbox"
+                      id="publishedCheckbox"
+                      checked={form.isPublished}
+                      onChange={(e) => updateFormField('isPublished', e.target.checked)}
+                      style={{ width: '17px', height: '17px', cursor: 'pointer', accentColor: '#e11d48' }}
+                    />
+                    <label htmlFor="publishedCheckbox" style={{ fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', color: '#1e293b' }}>
+                      Publish immediately to public boutique storefront
+                    </label>
+                  </div>
+                </form>
               </div>
 
-              {/* Published checkbox */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
-                <input
-                  type="checkbox"
-                  id="publishedCheckbox"
-                  checked={form.isPublished}
-                  onChange={(e) => setForm({ ...form, isPublished: e.target.checked })}
-                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                />
-                <label htmlFor="publishedCheckbox" style={{ fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
-                  Publish immediately to public boutique storefront
-                </label>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
-                <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary">
+              {/* Sticky Modal Footer — Never scrolls away */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '1rem 1.75rem',
+                  borderTop: '1px solid #e2e8f0',
+                  backgroundColor: '#f8fafc',
+                  flexShrink: 0,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="btn-secondary"
+                  disabled={saving}
+                >
                   Cancel
                 </button>
-                <button type="submit" disabled={saving} className="btn-primary">
+                <button
+                  type="submit"
+                  form="product-form"
+                  disabled={saving}
+                  className="btn-primary"
+                  style={{ minWidth: '130px' }}
+                >
                   {saving ? 'Saving...' : editingProduct ? 'Update Product' : 'Create Product'}
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
-
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

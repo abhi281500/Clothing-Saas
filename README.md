@@ -1,8 +1,8 @@
 # BoutiqueSaaS — Multi-Tenant Clothing Commerce SaaS
 
-A modern, multi-tenant ecommerce SaaS platform engineered for small Indian clothing boutiques and Instagram/WhatsApp-first apparel sellers.
+A modern, multi-tenant e-commerce SaaS platform engineered specifically for small Indian clothing boutiques and Instagram/WhatsApp-first apparel sellers.
 
-Each seller can launch a branded storefront, manage clothing collections (Kurtis, Sarees, Co-ord Sets, Lehengas), size and color variants, real-time inventory, promotional discount coupons, and receive direct Cash on Delivery (COD) and WhatsApp orders.
+Each boutique owner can launch a branded storefront, manage apparel collections (*Kurtis, Sarees, Co-ord Sets, Lehengas*), size/color variants, real-time inventory, scheduled promotional sales campaigns, and process direct Cash on Delivery (COD) and WhatsApp orders.
 
 ---
 
@@ -10,17 +10,20 @@ Each seller can launch a branded storefront, manage clothing collections (Kurtis
 
 ### For Boutique Sellers (Seller Workspace)
 - **Instant Store Onboarding:** Launch a branded online storefront with a custom URL slug in under 60 seconds.
-- **Clothing Catalog & Variant Management:** Manage apparel items with size variants (XS, S, M, L, XL, Free Size), color shades, SKUs, and stock counts.
-- **Stock & Inventory Locking:** Automatic stock tallying and atomic conditional reservation preventing overselling.
-- **Discount Engine:** Create percentage or flat Indian Rupee coupons (e.g., `WELCOME10`, `FESTIVE500`) with minimum order thresholds and maximum caps.
-- **Order Processing & State Machine:** Enforce strict valid status transitions (`PENDING` → `CONFIRMED` → `SHIPPED` → `DELIVERED` / `CANCELLED`), with automatic stock restoration upon cancellation.
-- **One-Click WhatsApp Customer Contact:** Message buyers directly on WhatsApp with pre-filled order status updates.
+- **Apparel Catalog & Variant Management:** Portal-based responsive product modal with fixed header/footer, independent scrolling, body scroll lock, Escape key dismissal, and unsaved changes confirmation.
+- **Custom Boutique Categories:** Create custom apparel categories (e.g., *Bridal Lehengas*, *Organza Sarees*) with instant dropdown and filter synchronization.
+- **Promotions & Scheduled Sales:** Schedule verified promotional campaigns (*Diwali Festive Sale*, *Under ₹999 Clearance*, *Flat 40% Off Handloom Sarees*) with start/end date scheduling, discount types, custom gradient themes, and live storefront banners.
+- **Atomic Stock Reservation:** Concurrency-safe stock updates using MongoDB `$gte` conditional decrements, preventing overselling under high checkout traffic.
+- **Order State Machine:** Enforces valid status transitions (`PENDING` → `CONFIRMED` → `SHIPPED` → `DELIVERED` or `CANCELLED`), with automatic stock restoration upon cancellation.
+- **WhatsApp Customer Support:** Message buyers directly on WhatsApp with pre-filled order status updates and inquiries.
 
-### For Shoppers (Public Storefront)
+### For Shoppers (Public Boutique Storefront)
 - **Mobile-First Boutique Experience:** Clean, responsive UI tailored for Indian mobile shoppers.
-- **Real-Time Size & Shade Availability:** Clear stock indicators per variant.
-- **Instant Bag & Checkout:** Indian checkout flow supporting Cash on Delivery (COD) and WhatsApp UPI payments.
-- **Instant WhatsApp Confirmation:** Immediate redirection option to confirm orders with boutique owners on WhatsApp.
+- **Store-Backed Promotional Deals:** 100% authentic promotional cards populated directly from active/upcoming seller campaigns and verified inventory metrics (no fabricated discounts).
+- **Multi-Field Product Search:** Search across apparel name, category, fabric description, and variant color with regex sanitization and one-click clear button.
+- **Active Navigation States:** Persistent tab highlighting (`Catalog`, `Track Order`, `Bag`) with accessible `aria-current="page"` markup.
+- **Reliable Order Tracking:** Look up orders via Order Number and Mobile Number, complete with privacy address masking, fulfillment timeline, and WhatsApp support.
+- **Cash on Delivery (COD):** Seamless Indian checkout experience with atomic inventory reservation and WhatsApp confirmation.
 
 ---
 
@@ -29,9 +32,9 @@ Each seller can launch a branded storefront, manage clothing collections (Kurtis
 - **Database:** MongoDB Atlas (Mongoose ODM) with tenant-scoped indexes, unique compound indexes, and session storage.
 - **Backend:** Node.js & Express.js (Modular monolith: thin controllers, rich domain services, validated DTOs).
 - **Session Management:** `express-session` backed by `connect-mongo` (HttpOnly, Secure, SameSite cookies; zero sensitive tokens in localStorage).
-- **Security:** Helmet, CORS allowlists, Rate limiters for auth and checkout (`express-rate-limit`), bcrypt password hashing.
-- **Frontend:** React 18, Vite, React Router DOM, Lucide React icons, mobile-responsive styling.
-- **Currency:** Integer minor units (`paise` for INR: 1 INR = 100 paise) preventing floating-point arithmetic errors.
+- **Security:** Helmet, CORS allowlists, Rate limiters for auth and checkout (`express-rate-limit`), bcrypt password hashing, and privacy data masking.
+- **Frontend:** React 18, Vite, React Router DOM, Lucide React icons, Portal-based modals, mobile-responsive boutique styling.
+- **Currency:** Integer minor units (**paise**: 1 INR = 100 paise) preventing floating-point arithmetic errors.
 
 ---
 
@@ -39,20 +42,26 @@ Each seller can launch a branded storefront, manage clothing collections (Kurtis
 
 ```
 ├── docs/
-│   └── AI_Developer_Master_Prompt.md   # Product & engineering source of truth
+│   ├── AI_Developer_Master_Prompt.md   # Product & engineering source of truth
+│   ├── BUG_FIXES_AND_IMPROVEMENTS.md   # Detailed audit, root causes, and fixes
+│   ├── PRODUCT_AND_PROMOTION_WORKFLOW.md # Apparel catalog & promotion guide
+│   ├── ORDER_TRACKING_WORKFLOW.md      # Order tracking architecture & privacy
+│   └── TESTING_AND_VERIFICATION.md     # Test suite specifications & verification
 ├── server/
 │   ├── src/
 │   │   ├── config/                     # Database, session, and env configuration
-│   │   ├── models/                     # User, Store (Tenant), Product, Order, Discount
+│   │   ├── models/                     # User, Store, Product, Order, Discount, Campaign
 │   │   ├── middlewares/                # Auth, Tenant isolation, Rate limiters, Error handler
-│   │   ├── services/                   # Business logic (Auth, Store, Product, Order, Discount)
+│   │   ├── services/                   # Business logic (Auth, Store, Product, Order, Discount, Campaign)
 │   │   ├── controllers/                # Thin HTTP controllers
 │   │   ├── routes/                     # Tenant-scoped and public storefront API routes
 │   │   ├── utils/                      # Minor units money calculator, API response envelopes
 │   │   ├── app.js                      # Express application setup
 │   │   └── server.js                   # Server bootstrap & graceful shutdown
 │   ├── tests/
-│   │   ├── unit.test.js                # Minor units, Order state machine & discount tests
+│   │   ├── unit.test.js                # Minor units, State machine, Discount, Campaign tests
+│   │   ├── promotions-and-products.test.js # Validation, Multi-field search, Deals engine
+│   │   ├── audit-regression.js         # Cross-tenant isolation & race condition tests
 │   │   └── runner.js                   # Test runner
 │   └── package.json
 ├── client/
@@ -62,8 +71,8 @@ Each seller can launch a branded storefront, manage clothing collections (Kurtis
 │   │   ├── components/                 # Navbar, SellerLayout, StorefrontLayout
 │   │   ├── pages/
 │   │   │   ├── Home.jsx                # Landing page
-│   │   │   ├── seller/                 # Login, Register, Dashboard, Products, Orders, Discounts, Settings
-│   │   │   └── storefront/             # StoreCatalog, ProductDetail, CartCheckout, OrderSuccess
+│   │   │   ├── seller/                 # Dashboard, Products, Promotions, Orders, Discounts, Settings
+│   │   │   └── storefront/             # StoreCatalog, ProductDetail, CartCheckout, OrderSuccess, OrderTrack
 │   │   ├── utils/                      # INR currency & date formatting
 │   │   ├── App.jsx                     # Route architecture
 │   │   └── index.css                   # Custom responsive boutique theme
@@ -79,7 +88,7 @@ Each seller can launch a branded storefront, manage clothing collections (Kurtis
 
 ## ⚙️ Environment Configuration
 
-Copy `.env.example` to `.env` in the root and in `server/`:
+Copy `.env.example` to `.env` in `server/`:
 
 ```env
 PORT=5000
@@ -106,31 +115,45 @@ npm install
 ```
 
 ### 2. Run in Development Mode
-You can start both backend and frontend concurrently from root, or independently:
-
 ```bash
-# From server directory (runs on port 5000)
+# Start backend server (port 5000)
+cd server
 npm run dev
 
-# From client directory (runs on port 5173)
+# Start frontend application (port 5173)
+cd client
 npm run dev
 ```
 
-### 3. Run Automated Tests
+### 3. Build for Production
 ```bash
-cd server
-npm test
+npm run build
 ```
 
 ---
 
-## 🔒 Security & Tenant Isolation Principles
+## 🧪 Testing & Verification
 
-1. **Mandatory Tenant Scoping:** Every seller endpoint validates that the target store ID is authorized for the authenticated user session via `requireStoreScope` middleware.
-2. **Server-Side Price & Inventory Revalidation:** The server re-calculates pricing from database records and atomically decrements stock (`$gte` conditional update) during checkout.
-3. **Integer Minor Units:** All monetary values are handled and saved in paise (1 INR = 100 paise), avoiding float rounding issues.
-4. **Order State Machine:** Orders can only advance through defined transitions:
-   - `PENDING` → `CONFIRMED` or `CANCELLED`
-   - `CONFIRMED` → `SHIPPED` or `CANCELLED`
-   - `SHIPPED` → `DELIVERED` or `CANCELLED`
-   - Cancelling an order automatically restores inventory stock.
+Execute all test suites:
+
+```bash
+# 1. Run Unit Tests
+npm test
+
+# 2. Run Product Validation & Promotions Integration Suite
+node server/tests/promotions-and-products.test.js
+
+# 3. Run Production Readiness Audit Regression Suite (Tenant isolation, race conditions)
+node server/tests/audit-regression.js
+```
+
+---
+
+## 📞 Platform Builder & Business Inquiries
+
+Interested in launching a boutique e-commerce platform for your clothing brand or studio?
+
+- **Lead Engineer & Builder:** Abhishek
+- **Phone / WhatsApp:** [+91 6290197418](tel:+916290197418) / [Chat on WhatsApp](https://wa.me/916290197418)
+- **Email:** [abhi281500@gmail.com](mailto:abhi281500@gmail.com)
+- **Repository:** [https://github.com/abhi281500/Clothing-Saas](https://github.com/abhi281500/Clothing-Saas)

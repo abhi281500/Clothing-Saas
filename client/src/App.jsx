@@ -10,6 +10,7 @@ import Register from './pages/seller/Register';
 import SellerLayout from './components/SellerLayout';
 import Dashboard from './pages/seller/Dashboard';
 import Products from './pages/seller/Products';
+import Promotions from './pages/seller/Promotions';
 import Orders from './pages/seller/Orders';
 import Discounts from './pages/seller/Discounts';
 import Settings from './pages/seller/Settings';
@@ -39,6 +40,7 @@ export default function App() {
               <Route index element={<Navigate to="/seller/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="products" element={<Products />} />
+              <Route path="promotions" element={<Promotions />} />
               <Route path="orders" element={<Orders />} />
               <Route path="discounts" element={<Discounts />} />
               <Route path="settings" element={<Settings />} />

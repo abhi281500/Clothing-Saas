@@ -6,6 +6,7 @@ const storeRoutes = require('./storeRoutes');
 const productRoutes = require('./productRoutes');
 const orderRoutes = require('./orderRoutes');
 const discountRoutes = require('./discountRoutes');
+const campaignRoutes = require('./campaignRoutes');
 const storefrontRoutes = require('./storefrontRoutes');
 
 // API Health Check
@@ -26,6 +27,7 @@ router.use('/stores', storeRoutes);
 router.use('/products', productRoutes);
 router.use('/orders', orderRoutes);
 router.use('/discounts', discountRoutes);
+router.use('/campaigns', campaignRoutes);
 
 // Public Customer Storefront routes
 router.use('/storefront', storefrontRoutes);

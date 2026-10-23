@@ -67,10 +67,35 @@ function testDiscountCalculations() {
   console.log('✔ Discount calculation tests passed!');
 }
 
+// Test 4: Campaign Schedule Status Determination
+function testCampaignStatus() {
+  console.log('Testing Campaign schedule status calculations...');
+
+  const now = new Date();
+  const past = new Date(Date.now() - 10000000);
+  const future = new Date(Date.now() + 10000000);
+
+  const getStatus = (startDate, endDate, isActive = true) => {
+    const cur = new Date();
+    if (!isActive) return 'PAUSED';
+    if (cur < startDate) return 'UPCOMING';
+    if (cur > endDate) return 'EXPIRED';
+    return 'ACTIVE';
+  };
+
+  assert.strictEqual(getStatus(past, future, true), 'ACTIVE', 'Current date between start and end should be ACTIVE');
+  assert.strictEqual(getStatus(future, new Date(Date.now() + 20000000), true), 'UPCOMING', 'Future start date should be UPCOMING');
+  assert.strictEqual(getStatus(new Date(Date.now() - 20000000), past, true), 'EXPIRED', 'Past end date should be EXPIRED');
+  assert.strictEqual(getStatus(past, future, false), 'PAUSED', 'Inactive campaign should be PAUSED');
+
+  console.log('✔ Campaign schedule status tests passed!');
+}
+
 try {
   testMoneyCalculations();
   testOrderStateTransitions();
   testDiscountCalculations();
+  testCampaignStatus();
   console.log('\n✅ ALL UNIT TESTS PASSED SUCCESSFULLY!\n');
 } catch (err) {
   console.error('\n❌ UNIT TEST FAILED:', err.message);

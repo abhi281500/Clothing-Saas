@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Navbar from './Navbar';
-import { LayoutDashboard, Shirt, ShoppingCart, Percent, Settings, ExternalLink } from 'lucide-react';
+import { LayoutDashboard, Shirt, ShoppingCart, Percent, Settings, ExternalLink, Sparkles } from 'lucide-react';
 
 export default function SellerLayout() {
   const { user, store, loading } = useAuth();
@@ -22,6 +22,7 @@ export default function SellerLayout() {
   const navItems = [
     { label: 'Overview', to: '/seller/dashboard', icon: LayoutDashboard },
     { label: 'Catalog & Products', to: '/seller/products', icon: Shirt },
+    { label: 'Promotions & Sales', to: '/seller/promotions', icon: Sparkles },
     { label: 'Orders & Shipments', to: '/seller/orders', icon: ShoppingCart },
     { label: 'Discount Codes', to: '/seller/discounts', icon: Percent },
     { label: 'Store Settings', to: '/seller/settings', icon: Settings },

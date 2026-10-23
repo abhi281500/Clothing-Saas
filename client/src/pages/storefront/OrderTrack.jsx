@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useOutletContext, Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import { formatINR, formatDate } from '../../utils/format';
-import { Search, Package, Clock, Truck, CheckCircle2, MessageCircle, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Search, Clock, ArrowLeft, AlertCircle, HelpCircle, Phone, PackageCheck, MessageCircle } from 'lucide-react';
 
 const STATUS_STEPS = ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED'];
 
@@ -20,20 +20,35 @@ export default function OrderTrack() {
 
   const handleTrack = async (e) => {
     e.preventDefault();
-    if (!orderNumber.trim() || !phone.trim()) {
-      setError('Please enter both your Order Number and Mobile Number');
+
+    const cleanOrderNumber = orderNumber.trim().toUpperCase();
+    // Normalize phone number: strip non-digits and leading +91 / 0 if 12/11 digits
+    let cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length === 12 && cleanPhone.startsWith('91')) {
+      cleanPhone = cleanPhone.slice(2);
+    } else if (cleanPhone.length === 11 && cleanPhone.startsWith('0')) {
+      cleanPhone = cleanPhone.slice(1);
+    }
+
+    if (!cleanOrderNumber) {
+      setError('Please enter your Order Number (e.g. ORD-12345).');
+      return;
+    }
+
+    if (!cleanPhone || cleanPhone.length < 10) {
+      setError('Please enter a valid 10-digit mobile number used during checkout.');
       return;
     }
 
     try {
       setLoading(true);
       setError('');
-      const res = await api.trackOrder(slug, orderNumber.trim(), phone.trim());
+      const res = await api.trackOrder(slug, cleanOrderNumber, cleanPhone);
       if (res.success) {
         setOrder(res.data);
       }
     } catch (err) {
-      setError(err.message || 'Order not found. Please verify details.');
+      setError(err.message || 'No order found matching these details. Please verify your order number and mobile number.');
       setOrder(null);
     } finally {
       setLoading(false);
@@ -50,41 +65,56 @@ export default function OrderTrack() {
   return (
     <div className="animate-fade-in" style={{ maxWidth: '640px', margin: '1.5rem auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       
+      {/* Navigation & Header */}
       <div>
         <Link
           to={`/store/${slug}`}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#78716c', fontSize: '0.875rem', fontWeight: 500 }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            color: '#64748b',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            padding: '0.35rem 0.65rem',
+            backgroundColor: '#f1f5f9',
+            borderRadius: '0.375rem',
+            marginBottom: '0.75rem',
+          }}
         >
           <ArrowLeft size={16} />
-          <span>Back to Store</span>
+          <span>← Back to {store?.name || 'Store'}</span>
         </Link>
-        <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.75rem', fontWeight: 700, color: '#1c1917', marginTop: '0.5rem' }}>
+        <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.75rem', fontWeight: 700, color: '#1c1917', marginTop: '0.25rem' }}>
           Track Your Boutique Order
         </h1>
-        <p style={{ color: '#78716c', fontSize: '0.9rem' }}>
-          Enter the order number and mobile number used during checkout to check delivery status.
+        <p style={{ color: '#78716c', fontSize: '0.9rem', marginTop: '0.2rem' }}>
+          Enter the order number and 10-digit mobile number provided at checkout to view real-time fulfillment status.
         </p>
       </div>
 
       {/* Lookup Form */}
       <div className="card">
-        <form onSubmit={handleTrack} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <form onSubmit={handleTrack} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem', color: '#1e293b' }}>
               Order Number *
             </label>
             <input
               type="text"
-              placeholder="e.g. ORD-1001 or ORD-839201"
+              placeholder="e.g. ORD-1729000000000-XYZ or ORD-1001"
               value={orderNumber}
               onChange={(e) => setOrderNumber(e.target.value.toUpperCase())}
               className="input-field"
               required
             />
+            <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', display: 'block' }}>
+              Your order number was shown on your confirmation receipt and sent via SMS/WhatsApp.
+            </span>
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem', color: '#1e293b' }}>
               Mobile Number (WhatsApp) *
             </label>
             <input
@@ -95,12 +125,30 @@ export default function OrderTrack() {
               className="input-field"
               required
             />
+            <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', display: 'block' }}>
+              Must match the mobile number used when placing the order.
+            </span>
           </div>
 
           {error && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem', backgroundColor: '#fee2e2', color: '#991b1b', borderRadius: '0.5rem', fontSize: '0.85rem' }}>
-              <AlertCircle size={16} />
-              <span>{error}</span>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.5rem',
+                padding: '0.85rem 1rem',
+                backgroundColor: '#fee2e2',
+                color: '#991b1b',
+                borderRadius: '0.5rem',
+                fontSize: '0.85rem',
+                border: '1px solid #fecaca',
+              }}
+            >
+              <AlertCircle size={17} style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <p style={{ fontWeight: 600 }}>Order Tracking Notice</p>
+                <p style={{ marginTop: '0.15rem' }}>{error}</p>
+              </div>
             </div>
           )}
 
@@ -111,7 +159,7 @@ export default function OrderTrack() {
             style={{ backgroundColor: primaryColor, padding: '0.75rem' }}
           >
             <Search size={16} />
-            <span>{loading ? 'Searching Order...' : 'Track Delivery Status'}</span>
+            <span>{loading ? 'Verifying Order Records...' : 'Track Delivery Status'}</span>
           </button>
         </form>
       </div>
@@ -134,7 +182,7 @@ export default function OrderTrack() {
           {/* Timeline */}
           {order.orderStatus === 'CANCELLED' ? (
             <div style={{ padding: '1rem', backgroundColor: '#fee2e2', color: '#991b1b', borderRadius: '0.5rem', textAlign: 'center', fontWeight: 600, fontSize: '0.9rem' }}>
-              This order has been cancelled by the seller.
+              This order has been cancelled by the boutique.
             </div>
           ) : (
             <div>
@@ -196,11 +244,13 @@ export default function OrderTrack() {
             </div>
           </div>
 
-          {/* Destination */}
+          {/* Destination with Privacy Redaction */}
           {order.customer?.shippingAddress && (
-            <div style={{ padding: '0.75rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#475569' }}>
+            <div style={{ padding: '0.75rem 1rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#475569', border: '1px solid #e2e8f0' }}>
               <p><strong>Recipient:</strong> {order.customer?.name} ({order.customer?.phone})</p>
-              <p><strong>Destination:</strong> {order.customer.shippingAddress.city}, {order.customer.shippingAddress.state} - {order.customer.shippingAddress.pincode}</p>
+              <p style={{ marginTop: '0.2rem' }}>
+                <strong>Destination:</strong> {order.customer.shippingAddress.city}, {order.customer.shippingAddress.state} - {order.customer.shippingAddress.pincode}
+              </p>
             </div>
           )}
 

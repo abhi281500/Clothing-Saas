@@ -60,8 +60,15 @@ export const api = {
   createDiscount: (payload) => apiRequest('/discounts', { method: 'POST', body: payload }),
   deleteDiscount: (id) => apiRequest(`/discounts/${id}`, { method: 'DELETE' }),
 
+  // Promotions & Campaigns (Seller)
+  getCampaigns: () => apiRequest('/campaigns'),
+  createCampaign: (payload) => apiRequest('/campaigns', { method: 'POST', body: payload }),
+  updateCampaign: (id, payload) => apiRequest(`/campaigns/${id}`, { method: 'PUT', body: payload }),
+  deleteCampaign: (id) => apiRequest(`/campaigns/${id}`, { method: 'DELETE' }),
+
   // Public Storefront (Shopper)
   getStorefront: (slug) => apiRequest(`/storefront/${slug}`),
+  getStoreDeals: (slug) => apiRequest(`/storefront/${slug}/deals`),
   getStoreCatalog: (slug, params = '') => apiRequest(`/storefront/${slug}/catalog${params}`),
   getStoreProduct: (slug, productSlug) => apiRequest(`/storefront/${slug}/products/${productSlug}`),
   validateCoupon: (slug, payload) => apiRequest(`/storefront/${slug}/validate-coupon`, { method: 'POST', body: payload }),
