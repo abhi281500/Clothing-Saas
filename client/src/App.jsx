@@ -1,26 +1,26 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import { CartProvider } from './context/CartContext';
+import { AuthProvider } from './context/AuthContext.jsx';
+import { CartProvider } from './context/CartContext.jsx';
 
 // Pages & Layouts
-import Home from './pages/Home';
-import Login from './pages/seller/Login';
-import Register from './pages/seller/Register';
-import SellerLayout from './components/SellerLayout';
-import Dashboard from './pages/seller/Dashboard';
-import Products from './pages/seller/Products';
-import Promotions from './pages/seller/Promotions';
-import Orders from './pages/seller/Orders';
-import Discounts from './pages/seller/Discounts';
-import Settings from './pages/seller/Settings';
+import Home from './pages/Home.jsx';
+import Login from './pages/seller/Login.jsx';
+import Register from './pages/seller/Register.jsx';
+import SellerLayout from './components/SellerLayout.jsx';
+import Dashboard from './pages/seller/Dashboard.jsx';
+import Products from './pages/seller/Products.jsx';
+import Promotions from './pages/seller/Promotions.jsx';
+import Orders from './pages/seller/Orders.jsx';
+import Discounts from './pages/seller/Discounts.jsx';
+import Settings from './pages/seller/Settings.jsx';
 
-import StorefrontLayout from './components/StorefrontLayout';
-import StoreCatalog from './pages/storefront/StoreCatalog';
-import ProductDetail from './pages/storefront/ProductDetail';
-import CartCheckout from './pages/storefront/CartCheckout';
-import OrderSuccess from './pages/storefront/OrderSuccess';
-import OrderTrack from './pages/storefront/OrderTrack';
+import StorefrontLayout from './components/StorefrontLayout.jsx';
+import StoreCatalog from './pages/storefront/StoreCatalog.jsx';
+import ProductDetail from './pages/storefront/ProductDetail.jsx';
+import CartCheckout from './pages/storefront/CartCheckout.jsx';
+import OrderSuccess from './pages/storefront/OrderSuccess.jsx';
+import OrderTrack from './pages/storefront/OrderTrack.jsx';
 
 export default function App() {
   return (

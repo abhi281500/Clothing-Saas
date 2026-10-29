@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, Sparkles, Smartphone, ShieldCheck, ArrowRight, Zap, CheckCircle2 } from 'lucide-react';
-import Navbar from '../components/Navbar';
+import Navbar from '../components/Navbar.jsx';
 
 export default function Home() {
   return (
