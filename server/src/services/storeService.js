@@ -36,6 +36,8 @@ class StoreService {
       'description',
       'whatsappNumber',
       'instagramHandle',
+      'facebookUrl',
+      'googleMapsUrl',
       'branding',
       'address',
     ];

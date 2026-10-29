@@ -39,6 +39,17 @@ const storeSchema = new mongoose.Schema(
     instagramHandle: {
       type: String,
       trim: true,
+      default: '',
+    },
+    facebookUrl: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    googleMapsUrl: {
+      type: String,
+      trim: true,
+      default: '',
     },
     branding: {
       logoUrl: { type: String, default: '' },
@@ -48,6 +59,7 @@ const storeSchema = new mongoose.Schema(
     },
     address: {
       street: { type: String, default: '' },
+      landmark: { type: String, default: '' },
       city: { type: String, default: '' },
       state: { type: String, default: '' },
       pincode: { type: String, default: '' },
