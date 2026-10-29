@@ -2,9 +2,11 @@
  * Centralized API client with credentials support for server-side sessions
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+const rawApiBase = import.meta.env.VITE_API_URL || '/api';
+const API_BASE = rawApiBase.replace(/\/+$/, '');
 
 export async function apiRequest(endpoint, { method = 'GET', body, headers = {} } = {}) {
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const config = {
     method,
     headers: {
@@ -18,7 +20,20 @@ export async function apiRequest(endpoint, { method = 'GET', body, headers = {} 
     config.body = JSON.stringify(body);
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, config);
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${cleanEndpoint}`, config);
+  } catch (netErr) {
+    // Handle network errors (e.g. Render server waking from cold start)
+    const err = new Error(
+      netErr.message === 'Failed to fetch'
+        ? 'Unable to connect to the boutique server. If using free-tier hosting (Render), the backend may take 30-50 seconds to wake up. Please retry in a few moments.'
+        : netErr.message || 'Network request failed'
+    );
+    err.status = 0;
+    throw err;
+  }
+
   const data = await response.json();
 
   if (!response.ok) {

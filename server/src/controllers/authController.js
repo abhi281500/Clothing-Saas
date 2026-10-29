@@ -45,7 +45,21 @@ class AuthController {
   async logout(req, res, next) {
     try {
       await authService.logout(req);
-      res.clearCookie('clothing_saas_sid');
+      const isProduction = process.env.NODE_ENV === 'production';
+      const sameSiteSetting = isProduction
+        ? (process.env.COOKIE_SAMESITE || 'none')
+        : 'lax';
+      const cookieDomain = process.env.COOKIE_DOMAIN;
+
+      res.clearCookie('clothing_saas_sid', {
+        path: '/',
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: sameSiteSetting,
+        domain: cookieDomain && cookieDomain !== 'localhost' && cookieDomain !== 'none'
+          ? cookieDomain
+          : undefined,
+      });
       return successResponse(res, null, 'Logged out successfully');
     } catch (error) {
       next(error);
