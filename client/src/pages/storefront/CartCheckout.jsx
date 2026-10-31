@@ -6,8 +6,9 @@ import { formatINR, toRupees } from '../../utils/format';
 import { ShoppingBag, Trash2, ArrowRight, Tag, AlertCircle, ArrowLeft, ShieldCheck } from 'lucide-react';
 
 export default function CartCheckout() {
-  const { slug } = useParams();
-  const { store } = useOutletContext();
+  const { slug: paramSlug } = useParams();
+  const { store, slug: contextSlug, isCustomDomain } = useOutletContext();
+  const slug = paramSlug || contextSlug || store?.slug;
   const { getCart, updateQuantity, removeFromCart, clearCart, getSubtotalPaise } = useCart();
   const navigate = useNavigate();
 
@@ -118,7 +119,12 @@ export default function CartCheckout() {
       if (res.success) {
         clearCart(slug);
         // Navigate to confirmation page
-        navigate(`/store/${slug}/order-success/${res.data.orderNumber}`, { state: { order: res.data } });
+        navigate(
+          isCustomDomain
+            ? `/order-success/${res.data.orderNumber}`
+            : `/store/${slug}/order-success/${res.data.orderNumber}`,
+          { state: { order: res.data } }
+        );
       }
     } catch (err) {
       setOrderError(err.message || 'Failed to complete order. Please check item stock.');
@@ -135,7 +141,7 @@ export default function CartCheckout() {
         <p style={{ color: '#78716c', marginTop: '0.25rem', marginBottom: '1.5rem' }}>
           Explore our handpicked collection and add your favorite apparel.
         </p>
-        <Link to={`/store/${slug}`} className="btn-primary" style={{ backgroundColor: primaryColor }}>
+        <Link to={isCustomDomain ? '/' : `/store/${slug}`} className="btn-primary" style={{ backgroundColor: primaryColor }}>
           Continue Shopping
         </Link>
       </div>
@@ -147,7 +153,7 @@ export default function CartCheckout() {
       
       <div>
         <Link
-          to={`/store/${slug}`}
+          to={isCustomDomain ? '/' : `/store/${slug}`}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#78716c', fontSize: '0.875rem', fontWeight: 500 }}
         >
           <ArrowLeft size={16} />

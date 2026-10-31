@@ -22,14 +22,39 @@ import CartCheckout from './pages/storefront/CartCheckout.jsx';
 import OrderSuccess from './pages/storefront/OrderSuccess.jsx';
 import OrderTrack from './pages/storefront/OrderTrack.jsx';
 
+const isCustomDomainHost = () => {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  if (!host) return false;
+  return !(
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host.endsWith('.vercel.app') ||
+    host.endsWith('.onrender.com')
+  );
+};
+
 export default function App() {
+  const isCustomDomain = isCustomDomainHost();
+
   return (
     <BrowserRouter>
       <AuthProvider>
         <CartProvider>
           <Routes>
-            {/* Landing Page */}
-            <Route path="/" element={<Home />} />
+            {isCustomDomain ? (
+              /* Custom Domain: Storefront is rendered directly at root / */
+              <Route path="/" element={<StorefrontLayout />}>
+                <Route index element={<StoreCatalog />} />
+                <Route path="products/:productSlug" element={<ProductDetail />} />
+                <Route path="cart" element={<CartCheckout />} />
+                <Route path="order-success/:orderNumber" element={<OrderSuccess />} />
+                <Route path="track" element={<OrderTrack />} />
+              </Route>
+            ) : (
+              /* Main Platform: SaaS Marketing Landing Page at root / */
+              <Route path="/" element={<Home />} />
+            )}
 
             {/* Seller Auth */}
             <Route path="/seller/login" element={<Login />} />
@@ -46,7 +71,7 @@ export default function App() {
               <Route path="settings" element={<Settings />} />
             </Route>
 
-            {/* Public Boutique Storefront */}
+            {/* Public Boutique Storefront for standard /store/:slug */}
             <Route path="/store/:slug" element={<StorefrontLayout />}>
               <Route index element={<StoreCatalog />} />
               <Route path="products/:productSlug" element={<ProductDetail />} />

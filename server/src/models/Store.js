@@ -68,6 +68,42 @@ const storeSchema = new mongoose.Schema(
       type: String,
       default: 'INR',
     },
+    customDomain: {
+      domain: {
+        type: String,
+        lowercase: true,
+        trim: true,
+      },
+      status: {
+        type: String,
+        enum: ['NONE', 'PENDING_DNS', 'ACTIVE', 'ERROR'],
+        default: 'NONE',
+      },
+      dnsTarget: {
+        type: String,
+        default: 'cname.clothing-saas-eight.vercel.app',
+      },
+      dnsRecords: [
+        {
+          recordType: { type: String, default: 'CNAME' },
+          name: { type: String, default: '@' },
+          value: { type: String, default: 'cname.clothing-saas-eight.vercel.app' },
+          description: { type: String, default: '' },
+        },
+      ],
+      verifiedAt: {
+        type: Date,
+      },
+      sslStatus: {
+        type: String,
+        enum: ['PENDING', 'ACTIVE', 'ERROR'],
+        default: 'PENDING',
+      },
+      lastDnsCheckError: {
+        type: String,
+        default: '',
+      },
+    },
     isActive: {
       type: Boolean,
       default: true,
@@ -81,6 +117,7 @@ const storeSchema = new mongoose.Schema(
 // Indexes
 storeSchema.index({ slug: 1 }, { unique: true });
 storeSchema.index({ ownerId: 1 });
+storeSchema.index({ 'customDomain.domain': 1 }, { unique: true, sparse: true });
 
 const Store = mongoose.model('Store', storeSchema);
 

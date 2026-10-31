@@ -4,6 +4,7 @@ const storefrontController = require('../controllers/storefrontController');
 const { checkoutLimiter } = require('../middlewares/rateLimiter');
 
 // Public storefront endpoints for shoppers (no seller auth required)
+router.get('/by-domain/:domain', storefrontController.getStoreByDomain);
 router.get('/:slug', storefrontController.getStoreInfo);
 router.get('/:slug/deals', storefrontController.getDeals);
 router.get('/:slug/catalog', storefrontController.getCatalog);

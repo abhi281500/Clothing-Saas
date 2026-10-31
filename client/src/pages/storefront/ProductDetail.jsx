@@ -6,8 +6,9 @@ import { formatINR } from '../../utils/format';
 import { ShoppingBag, MessageCircle, ArrowLeft, Check, ShieldCheck, Truck } from 'lucide-react';
 
 export default function ProductDetail() {
-  const { slug, productSlug } = useParams();
-  const { store } = useOutletContext();
+  const { slug: paramSlug, productSlug } = useParams();
+  const { store, slug: contextSlug, isCustomDomain } = useOutletContext();
+  const slug = paramSlug || contextSlug || store?.slug;
   const { addToCart } = useCart();
   const navigate = useNavigate();
 
@@ -83,7 +84,7 @@ export default function ProductDetail() {
 
   const handleBuyNow = () => {
     handleAddToCart();
-    navigate(`/store/${slug}/cart`);
+    navigate(isCustomDomain ? '/cart' : `/store/${slug}/cart`);
   };
 
   const handleWhatsAppInquiry = () => {
@@ -104,7 +105,7 @@ export default function ProductDetail() {
       {/* Back button */}
       <div>
         <Link
-          to={`/store/${slug}`}
+          to={isCustomDomain ? '/' : `/store/${slug}`}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#78716c', fontSize: '0.875rem', fontWeight: 500 }}
         >
           <ArrowLeft size={16} />

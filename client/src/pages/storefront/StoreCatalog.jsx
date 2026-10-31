@@ -5,8 +5,9 @@ import { formatINR } from '../../utils/format';
 import { Search, ShoppingBag, Eye, Shirt, Tag, Sparkles, Percent, ArrowRight, MessageCircle, X, Clock } from 'lucide-react';
 
 export default function StoreCatalog() {
-  const { slug } = useParams();
-  const { store } = useOutletContext();
+  const { slug: paramSlug } = useParams();
+  const { store, slug: contextSlug, isCustomDomain } = useOutletContext();
+  const slug = paramSlug || contextSlug || store?.slug;
 
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(['All']);
@@ -17,6 +18,9 @@ export default function StoreCatalog() {
   const [activeSearchQuery, setActiveSearchQuery] = useState('');
 
   const primaryColor = store.branding?.primaryColor || '#e11d48';
+
+  const getProductUrl = (prodSlug) =>
+    isCustomDomain ? `/products/${prodSlug}` : `/store/${slug}/products/${prodSlug}`;
 
   const loadCatalogAndDeals = async () => {
     try {
@@ -399,7 +403,7 @@ export default function StoreCatalog() {
               >
                 {/* Product Image with Discount Badge & Image Fallback */}
                 <Link
-                  to={`/store/${slug}/products/${p.slug}`}
+                  to={getProductUrl(p.slug)}
                   style={{
                     position: 'relative',
                     width: '100%',
@@ -479,7 +483,7 @@ export default function StoreCatalog() {
                       {p.category}
                     </span>
                     <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', marginTop: '0.25rem', lineHeight: 1.3 }}>
-                      <Link to={`/store/${slug}/products/${p.slug}`} style={{ color: 'inherit' }}>
+                      <Link to={getProductUrl(p.slug)} style={{ color: 'inherit' }}>
                         {p.name}
                       </Link>
                     </h3>
@@ -502,7 +506,7 @@ export default function StoreCatalog() {
                     </div>
 
                     <Link
-                      to={`/store/${slug}/products/${p.slug}`}
+                      to={getProductUrl(p.slug)}
                       className="btn-primary"
                       style={{
                         backgroundColor: primaryColor,

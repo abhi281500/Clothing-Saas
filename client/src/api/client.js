@@ -58,6 +58,9 @@ export const api = {
   getMyStore: () => apiRequest('/stores/my-store'),
   updateMyStore: (payload) => apiRequest('/stores/my-store', { method: 'PATCH', body: payload }),
   getDashboardStats: () => apiRequest('/stores/dashboard-stats'),
+  setCustomDomain: (payload) => apiRequest('/stores/my-store/custom-domain', { method: 'POST', body: payload }),
+  verifyCustomDomain: () => apiRequest('/stores/my-store/verify-domain', { method: 'POST' }),
+  removeCustomDomain: () => apiRequest('/stores/my-store/custom-domain', { method: 'DELETE' }),
 
   // Product Management (Seller)
   getProducts: (params = '') => apiRequest(`/products${params}`),
@@ -83,6 +86,7 @@ export const api = {
 
   // Public Storefront (Shopper)
   getStorefront: (slug) => apiRequest(`/storefront/${slug}`),
+  getStorefrontByDomain: (domain) => apiRequest(`/storefront/by-domain/${encodeURIComponent(domain)}`),
   getStoreDeals: (slug) => apiRequest(`/storefront/${slug}/deals`),
   getStoreCatalog: (slug, params = '') => apiRequest(`/storefront/${slug}/catalog${params}`),
   getStoreProduct: (slug, productSlug) => apiRequest(`/storefront/${slug}/products/${productSlug}`),

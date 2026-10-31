@@ -28,6 +28,34 @@ class StoreController {
       next(error);
     }
   }
+
+  async setCustomDomain(req, res, next) {
+    try {
+      const { domain } = req.body;
+      const store = await storeService.setCustomDomain(req.storeId, domain);
+      return successResponse(res, store, 'Custom domain configured successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async verifyCustomDomain(req, res, next) {
+    try {
+      const result = await storeService.verifyCustomDomain(req.storeId);
+      return successResponse(res, result, result.message);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async removeCustomDomain(req, res, next) {
+    try {
+      const store = await storeService.removeCustomDomain(req.storeId);
+      return successResponse(res, store, 'Custom domain removed successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new StoreController();

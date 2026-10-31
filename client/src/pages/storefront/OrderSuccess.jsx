@@ -4,12 +4,13 @@ import { formatINR } from '../../utils/format';
 import { CheckCircle2, MessageCircle, ArrowRight, ShoppingBag, Truck } from 'lucide-react';
 
 export default function OrderSuccess() {
-  const { slug, orderNumber } = useParams();
-  const { store } = useOutletContext();
+  const { slug: paramSlug, orderNumber } = useParams();
+  const { store, slug: contextSlug, isCustomDomain } = useOutletContext() || {};
+  const slug = paramSlug || contextSlug || store?.slug || '';
   const location = useLocation();
 
   const order = location.state?.order;
-  const primaryColor = store.branding?.primaryColor || '#e11d48';
+  const primaryColor = store?.branding?.primaryColor || '#e11d48';
 
   const handleWhatsAppConfirm = () => {
     const phone = (store.whatsappNumber || '').replace(/[^0-9]/g, '');
@@ -61,7 +62,7 @@ export default function OrderSuccess() {
         )}
 
         <Link
-          to={`/store/${slug}`}
+          to={isCustomDomain ? '/' : `/store/${slug}`}
           className="btn-secondary"
           style={{ width: '100%', padding: '0.75rem' }}
         >

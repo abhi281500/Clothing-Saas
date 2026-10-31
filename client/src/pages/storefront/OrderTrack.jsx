@@ -7,8 +7,9 @@ import { Search, Clock, ArrowLeft, AlertCircle, HelpCircle, Phone, PackageCheck,
 const STATUS_STEPS = ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED'];
 
 export default function OrderTrack() {
-  const { slug } = useParams();
-  const { store } = useOutletContext();
+  const { slug: paramSlug } = useParams();
+  const { store, slug: contextSlug, isCustomDomain } = useOutletContext();
+  const slug = paramSlug || contextSlug || store?.slug;
 
   const [orderNumber, setOrderNumber] = useState('');
   const [phone, setPhone] = useState('');
@@ -68,7 +69,7 @@ export default function OrderTrack() {
       {/* Navigation & Header */}
       <div>
         <Link
-          to={`/store/${slug}`}
+          to={isCustomDomain ? '/' : `/store/${slug}`}
           style={{
             display: 'inline-flex',
             alignItems: 'center',

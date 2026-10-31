@@ -11,4 +11,9 @@ router.get('/my-store', storeController.getMyStore);
 router.patch('/my-store', storeController.updateMyStore);
 router.get('/dashboard-stats', storeController.getDashboardStats);
 
+// Custom Domain Management (Cloudflare for SaaS / CNAME mapping)
+router.post('/my-store/custom-domain', storeController.setCustomDomain);
+router.post('/my-store/verify-domain', storeController.verifyCustomDomain);
+router.delete('/my-store/custom-domain', storeController.removeCustomDomain);
+
 module.exports = router;

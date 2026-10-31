@@ -19,26 +19,33 @@ const FacebookIcon = ({ size = 20 }) => (
 );
 
 export default function StorefrontLayout() {
-  const { slug } = useParams();
+  const { slug: paramSlug } = useParams();
   const location = useLocation();
   const { getCart } = useCart();
   const [store, setStore] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const cart = getCart(slug);
-  const totalCartCount = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
-
-  // Derive active navigation state
-  const isCatalogActive = location.pathname === `/store/${slug}` || location.pathname === `/store/${slug}/`;
-  const isTrackActive = location.pathname.startsWith(`/store/${slug}/track`);
-  const isCartActive = location.pathname.startsWith(`/store/${slug}/cart`);
+  const isCustomDomain =
+    !paramSlug &&
+    typeof window !== 'undefined' &&
+    window.location.hostname !== 'localhost' &&
+    window.location.hostname !== '127.0.0.1' &&
+    !window.location.hostname.endsWith('.vercel.app') &&
+    !window.location.hostname.endsWith('.onrender.com');
 
   useEffect(() => {
     async function loadStore() {
       try {
         setLoading(true);
-        const res = await api.getStorefront(slug);
+        let res;
+        if (paramSlug) {
+          res = await api.getStorefront(paramSlug);
+        } else {
+          // Resolve store by custom domain hostname
+          const hostname = window.location.hostname;
+          res = await api.getStorefrontByDomain(hostname);
+        }
         if (res.success) {
           setStore(res.data);
         }
@@ -49,7 +56,24 @@ export default function StorefrontLayout() {
       }
     }
     loadStore();
-  }, [slug]);
+  }, [paramSlug]);
+
+  const currentSlug = paramSlug || store?.slug || '';
+  const cart = getCart(currentSlug);
+  const totalCartCount = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+
+  // Derive active navigation state
+  const isCatalogActive = isCustomDomain
+    ? location.pathname === '/' || location.pathname === ''
+    : location.pathname === `/store/${currentSlug}` || location.pathname === `/store/${currentSlug}/`;
+
+  const isTrackActive = isCustomDomain
+    ? location.pathname.startsWith('/track')
+    : location.pathname.startsWith(`/store/${currentSlug}/track`);
+
+  const isCartActive = isCustomDomain
+    ? location.pathname.startsWith('/cart')
+    : location.pathname.startsWith(`/store/${currentSlug}/cart`);
 
   if (loading) {
     return (
@@ -108,7 +132,7 @@ export default function StorefrontLayout() {
           
           {/* Brand Logo & Name */}
           <div style={{ flexShrink: 0 }}>
-            <Link to={`/store/${slug}`} style={{ display: 'flex', flexDirection: 'column' }}>
+            <Link to={isCustomDomain ? '/' : `/store/${currentSlug}`} style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.5rem', fontWeight: 700, color: '#1c1917', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
                 {store.name}
               </span>
@@ -124,7 +148,7 @@ export default function StorefrontLayout() {
           <nav style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
             {/* Catalog Link */}
             <Link
-              to={`/store/${slug}`}
+              to={isCustomDomain ? '/' : `/store/${currentSlug}`}
               aria-current={isCatalogActive ? 'page' : undefined}
               style={{
                 fontSize: '0.85rem',
@@ -141,7 +165,7 @@ export default function StorefrontLayout() {
 
             {/* Track Order Link */}
             <Link
-              to={`/store/${slug}/track`}
+              to={isCustomDomain ? '/track' : `/store/${currentSlug}/track`}
               aria-current={isTrackActive ? 'page' : undefined}
               style={{
                 fontSize: '0.85rem',
@@ -216,7 +240,7 @@ export default function StorefrontLayout() {
 
             {/* Bag Button */}
             <Link
-              to={`/store/${slug}/cart`}
+              to={isCustomDomain ? '/cart' : `/store/${currentSlug}/cart`}
               aria-current={isCartActive ? 'page' : undefined}
               className="btn-primary"
               style={{
@@ -252,7 +276,7 @@ export default function StorefrontLayout() {
 
       {/* Main Storefront Area */}
       <main style={{ flex: 1, maxWidth: '1200px', width: '100%', margin: '0 auto', padding: '1.5rem 1rem' }}>
-        <Outlet context={{ store }} />
+        <Outlet context={{ store, slug: currentSlug, isCustomDomain }} />
       </main>
 
       {/* Verified Boutique Footer with Physical Address, Google Maps & Social Proof */}

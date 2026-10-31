@@ -6,6 +6,17 @@ const campaignService = require('../services/campaignService');
 const { successResponse, errorResponse } = require('../utils/apiResponse');
 
 class StorefrontController {
+  // Resolve public store by custom domain hostname
+  async getStoreByDomain(req, res, next) {
+    try {
+      const { domain } = req.params;
+      const store = await storeService.getPublicStoreByDomain(domain);
+      return successResponse(res, store, 'Store details resolved by domain');
+    } catch (error) {
+      next(error);
+    }
+  }
+
   // Get public store profile
   async getStoreInfo(req, res, next) {
     try {
